@@ -1,0 +1,264 @@
+{
+  "functionalLocations": [
+    {
+      "id": "NRL-FMT-HCU-MEC",
+      "flocCode": "NRL-FMT-HCU-MEC",
+      "name": "Refinery Complex - Process Unit",
+      "unit": "General Service",
+      "facility": "Plant Complex",
+      "assets": [
+        "04-VV-00-001 ~ RAW FEED SURGE DRUM"
+      ],
+      "totalAssets": 1,
+      "updatedAt": "2026-10-08T17:56:11.412Z"
+    }
+  ],
+  "assets": [
+    {
+      "id": "04-VV-00-001 ~ RAW FEED SURGE DRUM",
+      "tag": "04-VV-00-001",
+      "name": "RAW FEED SURGE DRUM",
+      "functionalLocation": "NRL-FMT-HCU-MEC",
+      "equipmentCategory": "Pressure Vessel",
+      "designPressure_kgcm2": 25,
+      "designTemp_C": 85
+    }
+  ],
+  "componentsByAsset": {
+    "04-VV-00-001 ~ RAW FEED SURGE DRUM": [
+      {
+        "id": "04-VV-00-001-SHELL",
+        "fullName": "SHELL",
+        "equipmentType": "Pressure Vessel",
+        "analyses": [
+          {
+            "id": "Evergreening 2026",
+            "name": "SHELL Analysis",
+            "internalInputs": {
+              "tInit_mm": 14,
+              "corrosionRate_mm_yr": 0.025,
+              "yearsInService": 26
+            },
+            "externalInputs": {
+              "operatingTemp_C": 40
+            },
+            "consequenceInputs": {
+              "fluidId": "C4",
+              "inventory_kg": 11166
+            },
+            "results": {
+              "internalPoF": {
+                "structuralMin_mm": 3.175,
+                "pressureMin_mm": 0,
+                "tReq_mm": 3.175,
+                "estimatedWallLoss_mm": 0.65,
+                "estimatedRemainingWall_mm": 13.35,
+                "fractionalWallLoss_art": 0.046,
+                "wallRatio": 4.2,
+                "estimatedHalfLife_years": 203.5,
+                "damageFactor": 1,
+                "baseProbability": 4,
+                "finalProbability": 5,
+                "creditApplied": true,
+                "yearsInService_val": 26,
+                "adjustedICDF": 1,
+                "failureFrequency_per_year": 0.0000306
+              },
+              "externalPoF": {
+                "basicCR_mm_yr": 0,
+                "predictedCR_mm_yr": 0.019,
+                "coatingLife_years": 5,
+                "externalAge_years": 21,
+                "wallLoss_mm": 0.399,
+                "fractionalWallLoss": 0.029,
+                "wallRatio": 4.28,
+                "damageFactor": 1,
+                "baseProbability": 4,
+                "finalProbability": 5,
+                "creditApplied": true,
+                "yearsInService_val": 26,
+                "areaHumidityFactor": 0.25,
+                "insulationConditionFactor": 1,
+                "insulationTypeFactor": 1,
+                "coatingFactor": 5,
+                "corrosionFactor": 1,
+                "estimatedHalfLife_years": 274.37,
+                "failureFrequency_per_year": 0.0000306
+              },
+              "combinedPoF": 5,
+              "governingPoFMechanism": "Internal Thinning",
+              "consequence": {
+                "initialPhase": "Gas",
+                "finalPhase": "Gas",
+                "leakArea_cm2": 53.5483,
+                "leakArea_in2": 8.3000031000062,
+                "flowRegime": "Subsonic Gas",
+                "dischargeRate_kg_min": 0,
+                "dischargeRate_g_min": 0,
+                "dischargeRate_lb_min": 0,
+                "deinventoryTime_min": 20,
+                "releaseDuration_min": 20,
+                "leakQuantity_kg": 0,
+                "leakQuantity_lb": 0,
+                "probabilityOfIgnition": 0.433,
+                "flammableDistance_m": 0,
+                "flammableDistance_ft": 0,
+                "flammableAffectedArea_m2": 0,
+                "flammableAffectedArea_ft2": 0,
+                "flammableCategory": "E",
+                "poolArea_m2": 0,
+                "poolArea_ft2": 0,
+                "toxicMixedReleaseRate_g_min": 0,
+                "toxicCategory": "N/A",
+                "environmentalCategory": "E",
+                "productionLossCategory": "B",
+                "governingCategory": "B",
+                "governingConsequenceType": "Production Loss"
+              },
+              "combinedCoF": "B",
+              "riskLevel": "Medium",
+              "priorityNumber": 19
+            },
+            "isCalculated": true,
+            "dateCriticalityCalculated": "10/8/2026, 5:56:11 PM",
+            "mechanisms": [
+              {
+                "id": "internal",
+                "name": "Criticality Calculator Internal Corrosion",
+                "damageFactor": 1,
+                "probabilityOfFailure": 5,
+                "consequenceOfFailure": "B",
+                "inspectionPriority": 19
+              },
+              {
+                "id": "external",
+                "name": "Criticality Calculator External Corrosion",
+                "damageFactor": 1,
+                "probabilityOfFailure": 5,
+                "consequenceOfFailure": "B",
+                "inspectionPriority": 19
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "04-VV-00-001-CHANNEL",
+        "fullName": "CHANNEL",
+        "equipmentType": "Pressure Vessel",
+        "analyses": [
+          {
+            "id": "Evergreening 2026",
+            "name": "CHANNEL Analysis",
+            "internalInputs": {
+              "tInit_mm": 16,
+              "corrosionRate_mm_yr": 0.03,
+              "yearsInService": 26
+            },
+            "externalInputs": {
+              "operatingTemp_C": 40
+            },
+            "consequenceInputs": {
+              "fluidId": "C4",
+              "inventory_kg": 11166
+            },
+            "results": {
+              "internalPoF": {
+                "structuralMin_mm": 3.175,
+                "pressureMin_mm": 0,
+                "tReq_mm": 3.175,
+                "estimatedWallLoss_mm": 0.78,
+                "estimatedRemainingWall_mm": 15.22,
+                "fractionalWallLoss_art": 0.049,
+                "wallRatio": 4.79,
+                "estimatedHalfLife_years": 200.75,
+                "damageFactor": 1,
+                "baseProbability": 4,
+                "finalProbability": 5,
+                "creditApplied": true,
+                "yearsInService_val": 26,
+                "adjustedICDF": 1,
+                "failureFrequency_per_year": 0.0000306
+              },
+              "externalPoF": {
+                "basicCR_mm_yr": 0,
+                "predictedCR_mm_yr": 0.019,
+                "coatingLife_years": 5,
+                "externalAge_years": 21,
+                "wallLoss_mm": 0.399,
+                "fractionalWallLoss": 0.025,
+                "wallRatio": 4.91,
+                "damageFactor": 1,
+                "baseProbability": 4,
+                "finalProbability": 5,
+                "creditApplied": true,
+                "yearsInService_val": 26,
+                "areaHumidityFactor": 0.25,
+                "insulationConditionFactor": 1,
+                "insulationTypeFactor": 1,
+                "coatingFactor": 5,
+                "corrosionFactor": 1,
+                "estimatedHalfLife_years": 327,
+                "failureFrequency_per_year": 0.0000306
+              },
+              "combinedPoF": 5,
+              "governingPoFMechanism": "Internal Thinning",
+              "consequence": {
+                "initialPhase": "Gas",
+                "finalPhase": "Gas",
+                "leakArea_cm2": 53.5483,
+                "leakArea_in2": 8.3000031000062,
+                "flowRegime": "Subsonic Gas",
+                "dischargeRate_kg_min": 0,
+                "dischargeRate_g_min": 0,
+                "dischargeRate_lb_min": 0,
+                "deinventoryTime_min": 20,
+                "releaseDuration_min": 20,
+                "leakQuantity_kg": 0,
+                "leakQuantity_lb": 0,
+                "probabilityOfIgnition": 0.433,
+                "flammableDistance_m": 0,
+                "flammableDistance_ft": 0,
+                "flammableAffectedArea_m2": 0,
+                "flammableAffectedArea_ft2": 0,
+                "flammableCategory": "E",
+                "poolArea_m2": 0,
+                "poolArea_ft2": 0,
+                "toxicMixedReleaseRate_g_min": 0,
+                "toxicCategory": "N/A",
+                "environmentalCategory": "E",
+                "productionLossCategory": "B",
+                "governingCategory": "B",
+                "governingConsequenceType": "Production Loss"
+              },
+              "combinedCoF": "B",
+              "riskLevel": "Medium",
+              "priorityNumber": 19
+            },
+            "isCalculated": true,
+            "dateCriticalityCalculated": "10/8/2026, 5:56:11 PM",
+            "mechanisms": [
+              {
+                "id": "internal",
+                "name": "Criticality Calculator Internal Corrosion",
+                "damageFactor": 1,
+                "probabilityOfFailure": 5,
+                "consequenceOfFailure": "B",
+                "inspectionPriority": 19
+              },
+              {
+                "id": "external",
+                "name": "Criticality Calculator External Corrosion",
+                "damageFactor": 1,
+                "probabilityOfFailure": 5,
+                "consequenceOfFailure": "B",
+                "inspectionPriority": 19
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "lastUpdated": "2026-10-08T17:56:11.412Z"
+}

@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User sessions & roles tracking
+    match /userSessions/{uid=**} {
+      allow read, write: if true;
+    }
+    match /userRoles/{userEmail=**} {
+      allow read, write: if true;
+    }
+    match /users/{userId=**} {
+      allow read, write: if true;
+    }
+
+    // Engineering database collections
+    match /damageMechanisms/{docId=**} {
+      allow read, write: if true;
+    }
+    match /stressData/{docId=**} {
+      allow read, write: if true;
+    }
+    match /streamDatasets/{datasetId=**} {
+      allow read, write: if true;
+    }
+    match /systemAuditLogs/{logId=**} {
+      allow read, write: if true;
+    }
+    match /systemMeta/{docId=**} {
+      allow read, write: if true;
+    }
+    match /systemSettings/{docId=**} {
+      allow read, write: if true;
+    }
+    match /analyses/{docId=**} {
+      allow read, write: if true;
+    }
+
+    // Corrosion Control Documents (CCD) Platform persistence
+    match /documents/{docId=**} {
+      allow read, write: if true;
+    }
+    match /doc_locks/{docId=**} {
+      allow read, write: if true;
+    }
+
+    // Semi-Quantitative RBI Hierarchical Collections & Workspace
+    match /rbi_functional_locations/{flocId=**} {
+      allow read, write: if true;
+    }
+    match /semi_quantitative_rbi_workspace/{docId=**} {
+      allow read, write: if true;
+    }
+    match /semi_quantitative_risk_assessments/{docId=**} {
+      allow read, write: if true;
+    }
+
+    // Catch-all for application documents
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,2325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>API 571 Damage Mechanism Dashboard</title>
+
+  <!-- 🌐 Clean URL Guard (Removes /dashboard.html from URL bar without reload) -->
+  <script>
+    (function () {
+      if (window.__cleanUrlHandled) return;
+      window.__cleanUrlHandled = true;
+      try {
+        if (typeof window !== "undefined" && window.history && typeof window.history.replaceState === "function") {
+          var loc = window.location;
+          if (loc.pathname && (loc.pathname.endsWith("/dashboard.html") || loc.pathname === "/dashboard.html")) {
+            var cleanPath = loc.pathname.replace(/\/dashboard\.html$/, "") || "/";
+            var currentSearch = loc.search || "";
+            var currentHash = loc.hash || "";
+            var newUrl = cleanPath + currentSearch + currentHash;
+            window.history.replaceState(window.history.state || null, document.title, newUrl);
+          }
+        }
+      } catch (err) {
+        console.warn("[CleanURL] replaceState skipped:", err);
+      }
+    })();
+  </script>
+
+  <!-- ✅ Safe JSON Serialization Guard -->
+  <script>
+    (function () {
+      if (typeof window === "undefined" || window.__safeJsonStringifyInstalled) return;
+      window.__safeJsonStringifyInstalled = true;
+      const originalStringify = JSON.stringify;
+      function createSafeReplacer(customReplacer) {
+        const seen = new WeakSet();
+        return function (key, value) {
+          if (typeof value === "object" && value !== null) {
+            if (seen.has(value)) return "[Circular]";
+            seen.add(value);
+          }
+          if (typeof customReplacer === "function") return customReplacer.call(this, key, value);
+          return value;
+        };
+      }
+      JSON.stringify = function (value, replacer, space) {
+        try {
+          return originalStringify(value, replacer, space);
+        } catch (err) {
+          if (err && (err.name === "TypeError" || /circular|cyclic/i.test(String(err.message || err)))) {
+            try {
+              return originalStringify(value, createSafeReplacer(replacer), space);
+            } catch (fallbackErr) {
+              return '"[Circular]"';
+            }
+          }
+          throw err;
+        }
+      };
+    })();
+
+    // 🛡️ Admin Panel Mobile Nav & Fullscreen Pre-load Stubs (Guaranteed safe, non-recursive)
+    window.toggleAdminMobileNav = function () {
+      if (window.adminPanel && typeof window.adminPanel.toggleMobileNav === "function" && window.adminPanel.toggleMobileNav !== window.toggleAdminMobileNav) {
+        return window.adminPanel.toggleMobileNav();
+      }
+      const sidebar = document.getElementById("admSidebar");
+      if (sidebar) sidebar.classList.toggle("mobile-open");
+    };
+
+    window.toggleAdminFullscreen = function () {
+      if (window.adminPanel && typeof window.adminPanel.toggleFullscreen === "function" && window.adminPanel.toggleFullscreen !== window.toggleAdminFullscreen) {
+        return window.adminPanel.toggleFullscreen();
+      }
+      const isWindowed = document.body.classList.toggle("adm-windowed-mode");
+      const btn = document.getElementById("admFullscreenToggleBtn");
+      if (btn) btn.innerHTML = isWindowed ? "⛶ Fullscreen" : "🗗 Windowed";
+    };
+
+    window.returnToDashboard = function () {
+      if (window.adminPanel && typeof window.adminPanel.returnToDashboard === "function" && window.adminPanel.returnToDashboard !== window.returnToDashboard) {
+        return window.adminPanel.returnToDashboard();
+      }
+      document.body.classList.remove("admin-mode-active");
+      document.body.classList.remove("adm-windowed-mode");
+      const adminTab = document.getElementById("adminPanelTab");
+      if (adminTab) adminTab.style.display = "none";
+      if (typeof hideAllMainPanels === "function") hideAllMainPanels();
+      if (typeof showWelcomePanel === "function") {
+        showWelcomePanel();
+      } else {
+        const welcome = document.getElementById("welcomePanel");
+        if (welcome) {
+          welcome.classList.remove("is-hidden");
+          welcome.style.setProperty("display", "flex", "important");
+        }
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.adminPanel = window.adminPanel || {};
+    window.adminPanel.toggleMobileNav = window.adminPanel.toggleMobileNav || function () {
+      const sidebar = document.getElementById("admSidebar");
+      if (sidebar) sidebar.classList.toggle("mobile-open");
+    };
+    window.adminPanel.toggleFullscreen = window.adminPanel.toggleFullscreen || function () {
+      const isWindowed = document.body.classList.toggle("adm-windowed-mode");
+      const btn = document.getElementById("admFullscreenToggleBtn");
+      if (btn) btn.innerHTML = isWindowed ? "⛶ Fullscreen" : "🗗 Windowed";
+    };
+    window.adminPanel.returnToDashboard = window.adminPanel.returnToDashboard || function () {
+      window.returnToDashboard();
+    };
+    window.adminPanel.loadAll = window.adminPanel.loadAll || function () {
+      console.log("Admin Panel initializing...");
+    };
+  </script>
+
+  <!-- 🛡️ Global Error, Cross-Origin Resilience & Safe Alert Guard -->
+  <script>
+    (function () {
+      // 1. Intercept generic cross-origin Script error and abort events
+      window.addEventListener("error", function (event) {
+        if (!event) return;
+        if (event.message === "Script error." || (event.error && event.error.name === "AbortError")) {
+          console.warn("[GlobalGuard] Handled cross-origin notification safely:", event.message);
+          if (typeof event.preventDefault === "function") event.preventDefault();
+          return true;
+        }
+      }, true);
+
+      window.addEventListener("unhandledrejection", function (event) {
+        if (!event) return;
+        const reason = event.reason;
+        if (reason && (reason.name === "AbortError" || String(reason).includes("Script error"))) {
+          if (typeof event.preventDefault === "function") event.preventDefault();
+          return;
+        }
+      });
+
+      // 2. Safe Modal / Alert Guard: prevents DOMException in sandboxed iframes
+      const origAlert = window.alert;
+      window.alert = function (msg) {
+        try {
+          if (typeof Swal !== "undefined" && Swal.fire) {
+            Swal.fire({
+              text: String(msg || ""),
+              icon: /error|failed|❌|⚠️/i.test(String(msg)) ? "warning" : "info",
+              confirmButtonColor: "#2563eb",
+              timer: 4500,
+              timerProgressBar: true
+            });
+            return;
+          }
+          if (typeof origAlert === "function") {
+            origAlert.call(window, msg);
+          }
+        } catch (e) {
+          console.warn("[SafeAlert] alert suppressed in sandbox iframe:", msg);
+        }
+      };
+    })();
+  </script>
+
+  <!-- SweetAlert2 Library -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" crossorigin="anonymous"></script>
+
+  <!-- 🌙 Early Theme Initialization (Prevents flash of unstyled theme in dark mode) -->
+  <script>
+    (function () {
+      try {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme === "dark") {
+          document.documentElement.classList.add("dark-mode");
+          document.documentElement.classList.remove("light-mode");
+        } else {
+          document.documentElement.classList.add("light-mode");
+          document.documentElement.classList.remove("dark-mode");
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+
+
+  <!-- ✅ SEO Meta Tags -->
+  <meta name="description" content="Visualize and manage API-based damage mechanisms online. Free and interactive tool.">
+  <meta name="keywords" content="API 571, Damage Mechanism Tool, Corrosion Calculator, API 581, RBI Tool, Inspection Dashboard, CUI, Sulfidation, CO2 Corrosion, High Temperature Corrosion, Representative Fluids">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://kayetdms.live/">
+  
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="scec8div1.css"/>
+  <link rel="stylesheet" href="crackingmechanism.css"/>
+
+   
+  
+  <!-- ✅ For Remaining css -->  
+  <link rel="stylesheet" href="remaininglife.css"> 
+
+  <!-- ✅ For damage mechanisms Criteria css -->  
+  <link rel="stylesheet" href="Damage_criteria.css"> 
+
+
+  <!-- ✅ For Remaining css -->
+  <link rel="stylesheet" href="Toxic.css">
+
+  
+  <!-- ✅ For PD/2SE css -->
+  <link rel="stylesheet" href="simple.css">
+
+  <!-- ✅ For probability css -->
+  <link rel="stylesheet" href="probability.css">
+
+ 
+    <!-- ✅ For  css -->
+  <link rel="stylesheet" href="inventory.css">
+
+  <!-- ✅ For stress value css -->
+  <link rel="stylesheet" href="bk_stress.css"> 
+
+    <!-- ✅ For stress value css -->
+  <link rel="stylesheet" href="chatbot.css"> 
+  
+   <!-- ✅ For inspection cofidence css -->
+  <link rel="stylesheet" href="inspectionconfidence.css"> 
+
+   <!-- ✅ For api 581 cof css -->
+  <link rel="stylesheet" href="api581cof.css"> 
+
+   <!-- ✅ For piping thickness chart -->
+  <link rel="stylesheet" href="stylePipe883.css"> 
+
+
+<!-- ✅ For globaly ibeam css -->
+  <link rel="stylesheet" href="global-style.css">
+
+
+     <!-- ✅ For Process Flow Diagrams css -->
+  <link rel="stylesheet" href="Flowdiagrams.css"> 
+  <link rel="stylesheet" href="cduvdu.css"> 
+  <link rel="stylesheet" href="msp.css">
+   <link rel="stylesheet" href="h2u.css">
+   <!-- 🌙 Comprehensive Dark Mode Stylesheet -->
+   <link rel="stylesheet" href="dark-mode.css">
+  <link rel="stylesheet" href="chemical-suite.css">
+  <link rel="stylesheet" href="periodic-table.css">
+  <link rel="stylesheet" href="stream-comparator.css">
+  <link rel="stylesheet" href="unit-converter.css">
+  <link rel="stylesheet" href="admin-control-center.css">
+  <link rel="stylesheet" href="ccd-ai-platform.css">
+  <link rel="stylesheet" href="structural-thickness.css?v=20261005_dark_v5">
+
+
+  
+  <!-- ✅ Select2 Dropdown CSS (for Representative Fluid multi-select) -->
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  
+<!-- ✅ Paste these favicon links BELOW the CSS line -->
+  <link rel="apple-touch-icon" sizes="180x180" href="image/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="image/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="image/favicon-16x16.png">
+  <link rel="manifest" href="image/site.webmanifest">
+  <link rel="icon" type="image/png" href="image/favicon.png" />
+
+  
+  <!-- 🛡️ Zero-Flash RBAC Early Pre-Filter: Injected before body paints to prevent module flash -->
+  <script>
+    (function () {
+      try {
+        var email = (localStorage.getItem("loggedInUser") || "").toLowerCase().trim();
+        var cachedRaw = localStorage.getItem("cached_rbac_permissions");
+        
+        var isSuper = email === "avijitkayet97@gmail.com";
+        var isAdminUser = isSuper;
+        if (cachedRaw) {
+          try {
+            var r = JSON.parse(cachedRaw);
+            if (!r.email || r.email.toLowerCase().trim() === email) {
+              if (r.isSuperAdmin || r.role === "admin") {
+                isAdminUser = true;
+              }
+            }
+          } catch(e) {}
+        }
+
+        var hasToolsPermission = false;
+        if (cachedRaw) {
+          try {
+            var rParsed = JSON.parse(cachedRaw);
+            if (rParsed && (!rParsed.email || rParsed.email.toLowerCase().trim() === email)) {
+              if (rParsed.allowedModules && rParsed.allowedModules.adminControlCenter) {
+                hasToolsPermission = true;
+              }
+              if (rParsed.subsections && rParsed.subsections.adminControlCenter) {
+                for (var sk in rParsed.subsections.adminControlCenter) {
+                  if (rParsed.subsections.adminControlCenter[sk] === true) {
+                    hasToolsPermission = true;
+                    break;
+                  }
+                }
+              }
+            }
+          } catch(e) {}
+        }
+
+        if (!isAdminUser) {
+          var stylePre = document.createElement("style");
+          stylePre.id = "rbacEarlyAdminPreHide";
+          // Strictly hide bottom admin panel launcher and admin-only elements, but leave tools category visible if permitted
+          stylePre.textContent = '#adminRbacBtn, #adminSidebarItem, #rbac_cat_adminControlCenter' + (hasToolsPermission ? '' : ', #rbac_cat_tools, [data-rbac-module="adminControlCenter"]') + ' { display: none !important; }\n';
+          document.head.appendChild(stylePre);
+        }
+
+        if (!email || !cachedRaw) return;
+        var rbac = JSON.parse(cachedRaw);
+        if (rbac.email && rbac.email.toLowerCase().trim() !== email) return;
+
+        // Clean up early pre-hide style once user permissions are loaded
+        var preHide = document.getElementById("rbacEarlyAdminPreHide");
+        if (preHide) preHide.remove();
+
+        if (rbac.isSuperAdmin || rbac.role === "admin" || isSuper) {
+          document.documentElement.classList.add("rbac-ready");
+          return;
+        }
+
+        var allowed = rbac.allowedModules || {};
+        var css = "";
+
+        // Admin bottom button and actions strictly hidden for non-admins
+        css += '#adminRbacBtn, #adminSidebarItem, #rbac_cat_adminControlCenter, .stress-admin-action { display: none !important; }\n';
+        if (!hasToolsPermission) {
+          css += '#rbac_cat_tools, [data-rbac-module="adminControlCenter"] { display: none !important; }\n';
+        }
+
+        // Disallowed modules: hide info cards and sidebar menu links immediately
+        var allKnown = [
+          "damageExplorer", "api571Criteria", "crackingMechanism", "corrosionRate",
+          "corrosionCalc", "remainingLife", "cofCalculator", "toxicCalc",
+          "inventoryCalc", "fluidSelector", "chemicalSuite", "streamComparator",
+          "unitConverter", "asmeB31_3", "simplePiping", "asmeSectionVIII",
+          "pipeThickness", "bkStress", "inspectionConfidence", "processFlow"
+        ];
+        allKnown.forEach(function (modId) {
+          if (allowed[modId] !== true) {
+            css += '[data-rbac-module="' + modId + '"] { display: none !important; }\n';
+          }
+        });
+
+        // Top-level category containers
+        var catMap = {
+          remainingLife: "#rbac_cat_api570",
+          crackingMechanism: "#rbac_cat_cracking",
+          bkStress: "#rbac_cat_bkStress",
+          processFlow: "#rbac_cat_processFlow",
+          chemicalSuite: "#rbac_cat_chemicalSuite",
+          streamComparator: "#rbac_cat_streamComparator",
+          unitConverter: "#rbac_cat_unitConverter"
+        };
+        for (var m in catMap) {
+          if (allowed[m] !== true) {
+            css += catMap[m] + ' { display: none !important; }\n';
+          }
+        }
+
+        if (allowed.rptu !== true) css += '#rbac_cat_rptu { display: none !important; }\n';
+        if (allowed.ccdAI !== true) css += '#rbac_cat_ccdAI { display: none !important; }\n';
+
+        // Process Piping / Design Thickness special container
+        if (!allowed.asmeB31_3 && !allowed.simplePiping && !allowed.asmeSectionVIII && !allowed.pipeThickness) {
+          css += '#rbac_cat_designThickness, #rbac_cat_thicknessCalc { display: none !important; }\n';
+        }
+
+        // API 581 Category container
+        if (!allowed.api571Criteria && !allowed.corrosionRate && !allowed.fluidSelector && !allowed.inventoryCalc && !allowed.inspectionConfidence && !allowed.toxicCalc && !allowed.cofCalculator && !allowed.corrosionCalc) {
+          css += '#rbac_cat_api581 { display: none !important; }\n';
+        }
+
+        // Damage Explorer category-toggle items & welcome card
+        if (allowed.damageExplorer !== true && allowed.damageMechanisms !== true) {
+          css += '#categoryList li.category-toggle:not([id^="rbac_cat_"]), #categoryList li[data-rbac-module="damageExplorer"], [data-rbac-module="damageExplorer"] { display: none !important; }\n';
+        }
+
+        if (css) {
+          var style = document.createElement("style");
+          style.id = "rbacEarlyPreFilterStyle";
+          style.textContent = css;
+          document.head.appendChild(style);
+        }
+      } catch (err) {
+        console.warn("RBAC early prefilter notice:", err);
+      }
+    })();
+  </script>
+
+  <style>
+    /* Graceful cold-start stabilization for RBAC cards */
+    body:not(.rbac-ready) #welcomePanel .info-card[data-rbac-module] {
+      opacity: 0.05;
+      transition: opacity 0.15s ease-in;
+    }
+    body.rbac-ready #welcomePanel .info-card[data-rbac-module],
+    html.rbac-ready #welcomePanel .info-card[data-rbac-module] {
+      opacity: 1;
+    }
+    .tab-content { display: none; margin-top: 20px; }
+    label { display: block; margin-top: 10px; }
+    input, select { max-width: 100%; box-sizing: border-box; }
+    @media (min-width: 769px) {
+      .grid-form input, .grid-form select { width: 100%; }
+    }
+    html:not(.dark-mode) #result, html:not(.dark-mode) #corrosionResult, html:not(.dark-mode) #corrosionResultFull {
+      margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9;
+    }
+    .category { cursor: pointer; font-weight: bold; margin-top: 10px; display: block; }
+    .mechanisms { display: none; list-style-type: circle; margin-left: 20px; }
+    .mechanisms li { margin: 5px 0; }
+    footer.footer {
+      margin-top: 30px; padding: 10px; background-color: #f0f0f0; text-align: center; border-top: 1px solid #ccc;
+    }
+    /* ✅ Background image for login */
+    .login-background {
+      background: url('images/bg.jpg') no-repeat center center / cover;
+      background-size: cover;
+      background-position: center;
+    }
+    .topbar-control-icon-btn {
+      background: var(--bg-medium, #2c2f34);
+      color: var(--text, #e0e0e0);
+      border: 1px solid var(--border, #444);
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+    }
+    .topbar-control-icon-btn:hover {
+      background: var(--accent, #0d6efd);
+      color: #ffffff;
+      border-color: var(--accent, #0d6efd);
+      transform: translateY(-1px);
+    }
+    .topbar-control-icon-btn:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+    .sidebar {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s ease, opacity 0.3s ease !important;
+    }
+    .sidebar-backdrop {
+      transition: opacity 0.3s ease, visibility 0.3s ease !important;
+    }
+  </style>
+</head>
+
+<!-- ✅ Keep body tag simple -->
+<body>
+  <script>
+    (function () {
+      try {
+        const user = localStorage.getItem("loggedInUser");
+        // ✅ Graceful session redirection
+        if (!user && !window.location.href.includes("index.html") && !window.location.pathname.endsWith("index.html")) {
+          // Guard against navigation recursion in test/preview iframes
+          if (window.location.pathname !== "/" && !window.location.search.includes("dev=true")) {
+            window.location.href = "index.html";
+          }
+        }
+
+        // ✅ Add background image only on login.html
+        if (window.location.href.includes("login.html")) {
+          document.body.classList.add("login-background");
+        }
+      } catch (navErr) {
+        console.warn("[AuthRedirect] Nav suppressed:", navErr);
+      }
+    })();
+  </script>
+
+  <!-- 📱 Early Mobile Navigation Drawer Controller (Guaranteed to be available before buttons render) -->
+  <script>
+    (function() {
+      let _mobileSidebarLock = false;
+      let _lastToggleTime = 0;
+
+      function getMainSidebar() {
+        return document.getElementById("mainSidebar") || document.querySelector(".sidebar");
+      }
+
+      function openMobileSidebar(e) {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+        if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+        _lastToggleTime = Date.now();
+        const sidebar = getMainSidebar();
+        const backdrop = document.getElementById("sidebarBackdrop");
+        if (sidebar) {
+          sidebar.classList.add("mobile-open");
+          sidebar.style.setProperty("transform", "translate3d(0, 0, 0)", "important");
+          sidebar.style.setProperty("-webkit-transform", "translate3d(0, 0, 0)", "important");
+          sidebar.style.setProperty("visibility", "visible", "important");
+          sidebar.style.setProperty("opacity", "1", "important");
+          sidebar.style.setProperty("pointer-events", "auto", "important");
+        }
+        if (backdrop) {
+          backdrop.classList.add("visible");
+          backdrop.style.setProperty("display", "block", "important");
+          backdrop.style.setProperty("opacity", "1", "important");
+          backdrop.style.setProperty("pointer-events", "auto", "important");
+        }
+        document.body.classList.add("sidebar-open");
+      }
+
+      function closeMobileSidebar(e) {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+        if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+        _lastToggleTime = Date.now();
+        const sidebar = getMainSidebar();
+        const backdrop = document.getElementById("sidebarBackdrop");
+        if (sidebar) {
+          sidebar.classList.remove("mobile-open");
+          sidebar.style.removeProperty("transform");
+          sidebar.style.removeProperty("-webkit-transform");
+          sidebar.style.removeProperty("visibility");
+          sidebar.style.removeProperty("opacity");
+          sidebar.style.removeProperty("pointer-events");
+        }
+        if (backdrop) {
+          backdrop.classList.remove("visible");
+          backdrop.style.removeProperty("display");
+          backdrop.style.setProperty("opacity", "0", "important");
+          backdrop.style.setProperty("pointer-events", "none", "important");
+        }
+        document.body.classList.remove("sidebar-open");
+      }
+
+      function toggleMobileSidebar(e) {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+        if (e && typeof e.stopPropagation === "function") e.stopPropagation();
+        const now = Date.now();
+        if (now - _lastToggleTime < 300 || _mobileSidebarLock) {
+          return;
+        }
+        _lastToggleTime = now;
+        _mobileSidebarLock = true;
+        setTimeout(() => { _mobileSidebarLock = false; }, 320);
+
+        const sidebar = getMainSidebar();
+        if (!sidebar) return;
+        if (sidebar.classList.contains("mobile-open")) {
+          closeMobileSidebar();
+        } else {
+          openMobileSidebar();
+        }
+      }
+
+      window.getMainSidebar = getMainSidebar;
+      window.toggleMobileSidebar = toggleMobileSidebar;
+      window.openMobileSidebar = openMobileSidebar;
+      window.closeMobileSidebar = closeMobileSidebar;
+      window.goHome = function () {
+        document.body.classList.remove("admin-mode-active");
+        document.body.classList.remove("adm-windowed-mode");
+        const adminTab = document.getElementById("adminPanelTab");
+        if (adminTab) adminTab.style.display = "none";
+        if (typeof hideAllMainPanels === "function") hideAllMainPanels();
+        if (typeof showWelcomePanel === "function") {
+          showWelcomePanel();
+        } else {
+          const welcome = document.getElementById("welcomePanel");
+          if (welcome) {
+            welcome.classList.remove("is-hidden");
+            welcome.style.setProperty("display", "flex", "important");
+          }
+        }
+        if (window.recentTabsManager) {
+          window.recentTabsManager.currentActiveTabId = null;
+          window.recentTabsManager.render();
+        }
+        if (window.RBAC && typeof window.RBAC.applySidebarVisibility === "function") {
+          window.RBAC.applySidebarVisibility();
+        }
+        if (typeof closeMobileSidebar === "function") closeMobileSidebar();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+    })();
+  </script>
+
+<div class="top-bar">
+  <div class="topbar-left-controls" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; flex-shrink: 0;">
+    <button id="headerHamburgerBtn" class="topbar-control-icon-btn" onclick="if (typeof toggleMobileSidebar === 'function') toggleMobileSidebar(event); else if (typeof window.toggleMobileSidebar === 'function') window.toggleMobileSidebar(event);" aria-label="Toggle Navigation Menu" type="button" title="Toggle Navigation Menu">
+      <span>☰</span>
+    </button>
+    <button id="headerHomeBtn" class="topbar-control-icon-btn" onclick="if (typeof window.goHome === 'function') window.goHome(); else if (typeof goHome === 'function') goHome();" aria-label="Return to Dashboard Home" type="button" title="Return to Dashboard Home">
+      <span>🏠</span>
+    </button>
+  </div>
+  <button id="mobileMenuToggleBtn" class="mobile-menu-toggle-btn" onclick="if (typeof toggleMobileSidebar === 'function') toggleMobileSidebar(event); else if (typeof window.toggleMobileSidebar === 'function') window.toggleMobileSidebar(event);" aria-label="Toggle Features Menu" type="button">
+    <span class="menu-icon">☰</span>
+    <span class="menu-text">Features</span>
+  </button>
+  <span class="mobile-brand-title">KayetDMS</span>
+
+  <div id="welcome">Welcome to API 571 Damage Mechanism Dashboard</div>
+  
+  <div class="scroll-container">
+    <div id="scrollText"></div>
+  </div>
+
+  <div class="settings-menu">
+    <button id="settingsBtn" type="button" aria-label="Settings" onclick="if (typeof toggleSettingsMenu === 'function') toggleSettingsMenu(event); else if (typeof window.toggleSettingsMenu === 'function') window.toggleSettingsMenu(event);">⚙️</button>
+    <div class="dropdown-content" id="dropdownContent">
+      <div id="dropdownRoleInfo" style="padding: 8px 12px; font-size: 11px; color: var(--text-light, #94a3b8); border-bottom: 1px solid var(--border, rgba(255,255,255,0.1)); display: flex; justify-content: space-between; align-items: center;">
+        <span>Role:</span>
+        <span id="dropdownRolePill" style="font-weight: 600; color: #3b82f6;">Loading...</span>
+      </div>
+      <button id="adminRbacBtn" onclick="if (typeof window.showAdminPanelTab === 'function') { window.showAdminPanelTab(); } else if (typeof openRbacAdminModal === 'function') { openRbacAdminModal(); }" style="display:none; color: #3b82f6; font-weight: 600;">🛡️ Admin Control Panel</button>
+      <button onclick="exportToPDF()">📄 Export PDF</button>
+      <button onclick="exportToExcel()">📊 Export Excel</button>
+      <button onclick="toggleDarkMode()">🌓 Toggle Dark Mode</button>
+      <button onclick="openHelp()">❓ Help</button>
+      <button onclick="logout()" style="color: #dc2626; border-top: 1px solid var(--border); font-weight: 600;">🚪 Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🕒 RECENT TABS QUICK SWITCHER BAR (Option A - Max 10 Limit) -->
+<div id="recentTabsBar" class="recent-tabs-bar" style="display: none;">
+  <div class="recent-tabs-header-label">
+    <span class="recent-tabs-icon">🕒</span>
+    <span>Recent Sheets:</span>
+  </div>
+  <div id="recentTabsScrollTrack" class="recent-tabs-scroll-track">
+    <span class="recent-tabs-empty">No sheets open. Open any module from below or sidebar to pin here.</span>
+  </div>
+  <div class="recent-tabs-controls">
+    <span id="recentTabsCountBadge" class="recent-tabs-count" title="Active open sheets: 0 of 10">0/10</span>
+    <button type="button" class="recent-tabs-clear-btn" onclick="if (window.recentTabsManager) window.recentTabsManager.clearAllTabs();" title="Clear all recent open tabs">Clear All</button>
+  </div>
+</div>
+
+<!-- Backdrop for mobile sidebar drawer -->
+<div id="sidebarBackdrop" class="sidebar-backdrop" onclick="if (typeof closeMobileSidebar === 'function') closeMobileSidebar(event); else if (typeof window.closeMobileSidebar === 'function') window.closeMobileSidebar(event);"></div>
+
+<div class="container">
+      <div class="sidebar" id="mainSidebar">
+        <div class="sidebar-header">
+          <h3>Features</h3>
+          <button id="closeSidebarBtn" class="mobile-close-sidebar-btn" onclick="if (typeof closeMobileSidebar === 'function') closeMobileSidebar(event); else if (typeof window.closeMobileSidebar === 'function') window.closeMobileSidebar(event);" aria-label="Close menu" type="button">✕</button>
+        </div>
+        <input type="text" id="searchBox" placeholder="Search ..." />
+        <div class="sidebar-scroll-area">
+          <ul id="categoryList"></ul>
+        </div>
+        <div class="sidebar-bottom-footer" id="sidebarBottomFooter"></div>
+      </div>
+
+      <div class="content">
+        <!-- Floating mobile features button -->
+        <button id="mobileFeaturesFab" class="mobile-features-fab" onclick="if (typeof toggleMobileSidebar === 'function') toggleMobileSidebar(event); else if (typeof window.toggleMobileSidebar === 'function') window.toggleMobileSidebar(event);" aria-label="Open Features" type="button">
+          <span>☰ Features</span>
+        </button>
+
+        <h3 id="selectedMechanismTitle">Select a Damage Mechanism</h3>
+        <div id="mechanismDetailsContainer"></div>
+
+      <!-- ✅ Asset Integrity Tools Welcome Panel (Premium Engineering Dashboard) -->
+<div class="welcome-panel" id="welcomePanel">
+  <!-- 🏭 Top Hero Banner with Refinery Background -->
+  <div class="dash-hero-banner">
+    <div class="dash-hero-overlay"></div>
+    <div class="dash-hero-inner">
+      <div class="dash-hero-left">
+        <div class="dash-hero-shield" title="Asset Integrity Engine">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="dash-hero-headings">
+          <h1 class="dash-hero-title">Asset Integrity Tools</h1>
+          <p class="dash-hero-tagline">
+            <span>Smarter Inspection</span>
+            <span class="dash-hero-sep">|</span>
+            <span>Safer Assets</span>
+            <span class="dash-hero-sep">|</span>
+            <span>Higher Uptime</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="dash-hero-right">
+        <!-- Live Search Bar -->
+        <div class="dash-hero-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="dashCardSearchInput" placeholder="Quick search tools..." oninput="filterDashboardCards(this.value)" autocomplete="off">
+          <button type="button" id="dashSearchClearBtn" onclick="clearDashboardSearch()" style="display:none;" title="Clear search">&times;</button>
+        </div>
+
+        <!-- Fullscreen Button -->
+        <button type="button" class="dash-hero-fullscreen-btn" id="welcomeFullscreenBtn" onclick="toggleWelcomeFullscreen()" title="Toggle Fullscreen View">
+          <svg class="fs-icon-expand" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          <svg class="fs-icon-compress" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+          <span class="fs-btn-text">Full Screen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎛️ Filter Categories Bar -->
+  <div class="dash-categories-bar">
+    <button type="button" class="dash-cat-btn active" onclick="filterDashboardCategory('all', this)">All Tools <span class="dash-cat-count" id="dashCardsTotalCount">14</span></button>
+    <button type="button" class="dash-cat-btn" onclick="filterDashboardCategory('api', this)">🛡️ API 571 & 581</button>
+    <button type="button" class="dash-cat-btn" onclick="filterDashboardCategory('asme', this)">📐 ASME & Mechanical</button>
+    <button type="button" class="dash-cat-btn" onclick="filterDashboardCategory('process', this)">⚗️ Streams & Chemistry</button>
+    <button type="button" class="dash-cat-btn" onclick="filterDashboardCategory('telemetry', this)">📊 Diagrams & Telemetry</button>
+  </div>
+
+  <!-- 🗂️ Cards Grid (15 Integrity Engineering Tools) -->
+  <div class="dash-cards-grid" id="dashCardsGrid">
+
+    <!-- Card 1: API 571 Damage Mechanisms Explorer -->
+    <div class="dash-card info-card" data-category="api" data-rbac-module="damageExplorer" style="--card-accent: #0284c7; --card-title-color: #0369a1;" onclick="openDamageExplorerCard()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #0284c7;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">API 571: Damage Mechanisms Explorer</h4>
+          <p class="dash-card-desc">Explore damage mechanisms and related information.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #0284c7;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/refinery.jpg');">
+        <div class="dash-thumb-corner-flap" style="background: #0284c7;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: API 581 Corrosion Rate Calculator -->
+    <div class="dash-card info-card" data-category="api" data-rbac-module="corrosionRate" style="--card-accent: #16a34a; --card-title-color: #15803d;" onclick="showCorrosionFullTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #16a34a;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="10" r="1"/><circle cx="16" cy="10" r="1"/><circle cx="8" cy="14" r="1"/><circle cx="12" cy="14" r="1"/><circle cx="16" cy="14" r="1"/><circle cx="8" cy="18" r="1"/><circle cx="12" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">API 581 Corrosion Rate Calculator</h4>
+          <p class="dash-card-desc">Calculate corrosion rates and assess remaining life.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #16a34a;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/corrosion_rate_estimator.png');">
+        <div class="dash-thumb-corner-flap" style="background: #16a34a;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: API 570 Remaining Life -->
+    <div class="dash-card info-card" data-category="api" data-rbac-module="api570" style="--card-accent: #7c3aed; --card-title-color: #6d28d9;" onclick="showRemainingLifeTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #7c3aed;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14 15"/><path d="M12 2v3M9 2h6"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">API 570 Remaining Life</h4>
+          <p class="dash-card-desc">Short/Long term corrosion rates, remaining life, half-life inspection intervals & Excel bulk upload.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #7c3aed;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/api570_dashboard.png');">
+        <div class="dash-thumb-corner-flap" style="background: #7c3aed;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Design Thickness (ASME) -->
+    <div class="dash-card info-card" data-category="asme" data-rbac-module="thicknessCalc" style="--card-accent: #0d9488; --card-title-color: #0f766e;" onclick="showASMEB31_3Tab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #0d9488;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Design Thickness (ASME)</h4>
+          <p class="dash-card-desc">ASME B31.3 Process Piping (Eq 3a/3b), Barlow's equation, Section VIII Div 1 vessels & schedule charts.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #0d9488;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/viii_calculator.png');">
+        <div class="dash-thumb-corner-flap" style="background: #0d9488;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 5: Cracking Mechanism Analysis -->
+    <div class="dash-card info-card" data-category="api" data-rbac-module="cracking" style="--card-accent: #ea580c; --card-title-color: #c2410c;" onclick="showCrackingMechanismTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #ea580c;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Cracking Mechanism Analysis</h4>
+          <p class="dash-card-desc">SCC Environmental Finder, Wet H₂S (HIC/SOHIC/SSC) risk screening & thermal fatigue rules.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #ea580c;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/cracking_finder.png');">
+        <div class="dash-thumb-corner-flap" style="background: #ea580c;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6: Allowable Stress DB -->
+    <div class="dash-card info-card" data-category="asme" data-rbac-module="bkStress" style="--card-accent: #db2777; --card-title-color: #be185d;" onclick="showbkStressTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #db2777;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Allowable Stress DB</h4>
+          <p class="dash-card-desc">ASME B31.3 Table A-1 Data & Allowable Stress Database</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #db2777;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/stress_material.png');">
+        <div class="dash-thumb-corner-flap" style="background: #db2777;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 7: Stream Data Comparator -->
+    <div class="dash-card info-card" data-category="process" data-rbac-module="streamComparator" style="--card-accent: #0891b2; --card-title-color: #0e7490;" onclick="showStreamComparatorTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #0891b2;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3v18M6 7l6-4 6 4M3 13l3-6 3 6a3 3 0 0 1-6 0zm12 0l3-6 3 6a3 3 0 0 1-6 0z"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Stream Data Comparator</h4>
+          <p class="dash-card-desc">Heat & Material Balance Comparison (HMB) between Stream A & B.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #0891b2;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/refinery.jpg');">
+        <div class="dash-thumb-corner-flap" style="background: #0891b2;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 8: Chemical Suite -->
+    <div class="dash-card info-card" data-category="process" data-rbac-module="chemicalSuite" style="--card-accent: #4f46e5; --card-title-color: #4338ca;" onclick="showChemicalSuiteTab('suit')">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #4f46e5;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 3h6M10 9h4M10 3v6l-4 9a2 2 0 0 0 1.8 2.9h12.4a2 2 0 0 0 1.8-2.9L14 9V3"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Chemical Suite</h4>
+          <p class="dash-card-desc">Corrosion & Chemistry Prediction, SDS & HAZMAT PPE Matrix.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #4f46e5;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/sulfuric-acid-corrosion.png');">
+        <div class="dash-thumb-corner-flap" style="background: #4f46e5;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 9: Unit Converters -->
+    <div class="dash-card info-card" data-category="process" data-rbac-module="unitConverter" style="--card-accent: #d97706; --card-title-color: #b45309;" onclick="showUnitConverterTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #d97706;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 20h20M7 20v-8l5-3v11M14 20v-5l4-2v7"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Unit Converters</h4>
+          <p class="dash-card-desc">Plant & Integrity Unit Converters for corrosion, pressure, temp & flow.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #d97706;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/representative_fluid.png');">
+        <div class="dash-thumb-corner-flap" style="background: #d97706;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 10: Process Flow Diagrams (PFD) -->
+    <div class="dash-card info-card" data-category="telemetry" data-rbac-module="processFlow" style="--card-accent: #6b21a8; --card-title-color: #581c87;" onclick="showPROCESSFLOWDIAGRAMSTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #6b21a8;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="8.5" y1="6" x2="15" y2="6"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Process Flow Diagrams (PFD)</h4>
+          <p class="dash-card-desc">Corrosion loops & degradation maps for Atmospheric Distillation, CDU/VDU, MSP, and H2U units..</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #6b21a8;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('CDU-VDU-Model.svg'); background-color: #1e1b4b; background-size: contain; background-repeat: no-repeat;">
+        <div class="dash-thumb-corner-flap" style="background: #6b21a8;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 11: RPTU Dashboard -->
+    <div class="dash-card info-card" data-category="telemetry" data-rbac-module="rptu" style="--card-accent: #dc2626; --card-title-color: #b91c1c;" onclick="if (typeof showRPTUDashboard === 'function') showRPTUDashboard(); else window.location.href='RPTU_Dashboard.html';">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #dc2626;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M6 12l3-4 4 5 5-7"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">RPTU Dashboard</h4>
+          <p class="dash-card-desc">Live process telemetry monitoring and Integrity Operating Window (IOW) exceedance alarms.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #dc2626;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/probability.png');">
+        <div class="dash-thumb-corner-flap" style="background: #dc2626;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 12: CCD AI Platform -->
+    <div class="dash-card info-card" data-category="telemetry" data-rbac-module="ccdAI" style="--card-accent: #0284c7; --card-title-color: #0369a1;" onclick="if (typeof showCCDAITab === 'function') showCCDAITab();">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #0284c7;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="12" cy="12" r="3"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">CCD AI Platform</h4>
+          <p class="dash-card-desc">AI-powered degradation rate modeling & neural network damage mechanism classifier.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #0284c7;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/criteria_finding.png');">
+        <div class="dash-thumb-corner-flap" style="background: #0284c7;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 14: API 571 Screening Matrix -->
+    <div class="dash-card info-card" data-category="api" data-rbac-module="api571Criteria" style="--card-accent: #4338ca; --card-title-color: #3730a3;" onclick="showCriteriaTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #4338ca;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">API 571 Screening Matrix</h4>
+          <p class="dash-card-desc">Input process conditions to screen and evaluate 17 core damage mechanisms using smart rules.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #4338ca;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/criteria_finding.png');">
+        <div class="dash-thumb-corner-flap" style="background: #4338ca;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 15: Representative Fluids (API 581) -->
+    <div class="dash-card info-card" data-category="process" data-rbac-module="fluidSelector" style="--card-accent: #059669; --card-title-color: #047857;" onclick="showFluidSelectorTab()">
+      <div class="dash-card-top">
+        <div class="dash-card-icon" style="background: #059669;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+        <div class="dash-card-meta">
+          <h4 class="dash-card-title">Representative Fluids</h4>
+          <p class="dash-card-desc">Access API 581 Table 4.1 chemical library with thermodynamic properties & flammability limits.</p>
+        </div>
+        <div class="dash-card-arrow-btn" style="background: #059669;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="dash-card-thumb" style="background-image: url('image/representative_fluid.png');">
+        <div class="dash-thumb-corner-flap" style="background: #059669;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State when all cards are hidden in Layout Builder or restricted by RBAC -->
+    <div id="dashCardsEmptyState" style="display: none; grid-column: 1 / -1; text-align: center; padding: 48px 20px; background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; margin: 10px 0;">
+      <div style="font-size: 38px; margin-bottom: 8px;">🔒</div>
+      <h3 style="margin: 0 0 6px 0; font-size: 18px; color: #334155; font-weight: 700;">No Navigation Cards Visible</h3>
+      <p style="margin: 0; font-size: 13.5px; color: #64748b;">All module tabs and quick-access cards have been hidden in Layout &amp; Navigation Builder or restricted by RBAC.</p>
+    </div>
+
+  </div>
+</div>
+<!-- ✅ End Welcome Panel -->
+
+      <!-- 🚀 Dynamic On-Demand Module Mount Placeholder -->
+      <div id="dynamicModuleMount"></div>
+
+      <!-- 🛡️ API 571 Damage Mechanism Screening Matrix (Extracted to templates/view-criteria-1051.html for dynamic on-demand loading) -->
+      <!-- 🛠️ API 581 Corrosion Rate Estimator & Dashboard (Extracted to templates/view-corrosion-1053.html for dynamic on-demand loading) -->
+      <!-- 🧪 API 581 Process Representative Fluids Library (Extracted to templates/view-fluids-1054.html for dynamic on-demand loading) -->
+      <!-- 🧪 Corrosion Rate & Remaining Life Calculator Tab (Extracted to templates/view-remaininglife-1070.html for dynamic on-demand loading) -->
+<!-- ================= API 581 Level 2 – COF Calculator Tab ================= -->
+<!-- ================= API 581 Level 2 – COF Calculator Tab ================= -->
+<!-- ✅ Consequence of Failure (COF) Tab (Extracted to templates/view-cof-1058.html for dynamic on-demand loading) -->
+
+
+
+<!-- ✅ Internal Corrosion Calculator -->
+<!-- ✅ Corrosion Calculation Tab (Extracted to templates/view-rbi-1030.html for dynamic on-demand loading) -->
+
+  
+        
+
+<!-- ✅ Toxic Form -->
+<!-- ✅ Toxic Form (Extracted to templates/view-toxic-1057.html for dynamic on-demand loading) -->
+<!-- ✅ PFD Modals (Extracted to templates/view-pfd-modals.html for dynamic on-demand loading) -->
+<div id="pfdModalsMount"></div>
+<!-- ✅ ASME B31.3 Thickness Calculator Tab -->
+<!-- ✅ ASME B31.3 Thickness Calculator Tab (Extracted to templates/view-asme-1040.html for dynamic on-demand loading) -->
+
+<!-- ✅ Simple PD/2SE Thickness Calculator Tab -->
+<!-- ✅ Simple PD/2SE Thickness Calculator Tab (Extracted to templates/view-pipe-simple-1041.html for dynamic on-demand loading) -->
+<!-- ✅ ASME Section VIII Div. 1 Thickness Calculator Tab -->
+<!-- ✅ ASME Section VIII Div. 1 Thickness Calculator Tab (Extracted to templates/view-sec8-1042.html for dynamic on-demand loading) -->
+<!-- ⭐⭐ INSERT PIPE THICKNESS FINDER HERE ⭐⭐ -->
+<!-- ⭐ Pipe Thickness Finder Tab (Extracted to templates/view-pipe-chart-1043.html for dynamic on-demand loading) -->
+<!-- 🛡️ API Structural Minimum Thickness & Tolerance Lookup Tab -->
+<!-- 🛡️ API Structural Minimum Thickness & Tolerance Lookup Tab (Extracted to templates/view-pipe-struct-1044.html for dynamic on-demand loading) -->
+<!-- ✅ Inspection confidence Tab 581 and GE (Updated Layout) -->
+<!-- ✅ Inspection Confidence Tab (Extracted to templates/view-inspection-1056.html for dynamic on-demand loading) -->
+<!-- Cracking Mechanism Tab -->
+<!-- Cracking Mechanism Tab (Extracted to templates/view-cracking-1065.html for dynamic on-demand loading) -->
+
+
+
+
+<!-- ✅ stress value Calculator Tab -->
+<!-- ✅ stress value Calculator Tab -->
+<!-- ✅ stress value Calculator Tab (Extracted to templates/view-stress-1060.html for dynamic on-demand loading) -->
+
+
+<!-- ✅ Inventory Calculator Tab -->
+<!-- ✅ Inventory Calculator Tab (Extracted to templates/view-inventory-1055.html for dynamic on-demand loading) -->
+<!-- ⚙️ ADMIN CONTROL CENTER TAB & MODALS (Extracted to templates/view-admin-1000.html for dynamic on-demand loading) -->
+<!-- ============================================================================
+       ⚗️ Chemistry & Chemical Engineering Suite Tab Content
+       ============================================================================ -->
+  <!-- ⚗️ Chemistry & Chemical Engineering Suite Tab (Extracted to templates/view-chemsuite-1080.html for dynamic on-demand loading) -->
+<!-- ============================================================================
+       🔄 Process Stream & Material Balance Comparator Tab Content
+       ============================================================================ -->
+<!-- 🔄 Process Stream & Material Balance Comparator Tab (Extracted to templates/view-stream-1010.html for dynamic on-demand loading) -->
+
+  <!-- ===================================================================== -->
+  <!-- 📐 TAB: Plant & Integrity Core Unit Converters (Instant Reactive)    -->
+  <!-- ===================================================================== -->
+  <!-- 📐 TAB: Plant & Integrity Core Unit Converters (Extracted to templates/view-units-1090.html for dynamic on-demand loading) -->
+  </div> <!-- closes .content -->
+  </div> <!-- closes .container -->
+
+  <!-- 📥 Process Stream Ingestion & Sheet Manager Pop Screen Modal -->
+  <div id="streamIngestModal" class="rbac-modal-backdrop" style="display: none;">
+    <div class="rbac-modal-card" style="max-width: 840px; border-radius: 14px; border: 1px solid #cbd5e1; box-shadow: 0 25px 60px rgba(0,0,0,0.3); overflow: hidden;">
+      <!-- Pop Screen Header -->
+      <div class="rbac-modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border-bottom: 2px solid #3b82f6; padding: 16px 22px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.2); display: flex; align-items: center; justify-content: center; font-size: 20px; border: 1px solid rgba(59, 130, 246, 0.4);">
+            📥
+          </div>
+          <div>
+            <h3 style="margin: 0; font-size: 17px; font-weight: 700; color: #f8fafc; letter-spacing: -0.2px;">
+              Process Stream Ingestion & Sheet Manager
+            </h3>
+            <p style="margin: 3px 0 0 0; font-size: 12.5px; color: #94a3b8;">
+              Ingest HMB stream data, run high-throughput multi-stream parsing, or load benchmark refinery cases
+            </p>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 11px; padding: 4px 10px; border-radius: 9999px; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 600;">
+            ⚡ 500+ Stream Parsing Engine
+          </span>
+          <button class="rbac-close-btn" onclick="window.StreamComparator.closeIngestModal()" type="button" aria-label="Close" style="color: #cbd5e1; font-size: 24px; line-height: 1; cursor: pointer; background: none; border: none; padding: 4px 8px;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Pop Screen Body -->
+      <div style="padding: 20px; max-height: calc(88vh - 120px); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: #ffffff;">
+        <!-- Active Dataset Telemetry Strip in Pop Screen -->
+        <div style="padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 12px; font-weight: 600; color: #64748b;">Current Active Dataset:</span>
+            <span id="modalStreamDocTitle" style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 13px; font-weight: 700; color: #0f172a; background: #ffffff; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">Loading...</span>
+            <span id="modalStreamCount" style="font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #e0f2fe; color: #0369a1;">-- Streams</span>
+            <span id="modalStreamSaveBadge" style="display: none; font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: #dcfce7; color: #15803d; font-weight: 600; border: 1px solid #bbf7d0;">☁️ Cloud Saved</span>
+          </div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button type="button" id="btnMergeStreamFile" class="stream-btn" style="padding: 5px 11px; font-size: 12px; background: #f1f5f9; color: #4338ca; border: 1px solid #c7d2fe; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.openMergeFileInput()" title="Merge secondary sheet (Properties + Components)">
+              ➕ Merge 2nd Sheet
+            </button>
+            <button type="button" class="stream-btn" style="padding: 5px 11px; font-size: 12px; background: #fff5f5; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.clearDataset()" title="Clear active dataset">
+              🗑️ Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Dropzone Area -->
+        <div id="streamDropzone" class="stream-dropzone" style="border: 2px dashed #93c5fd; background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%); border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: all 0.2s ease;">
+          <input type="file" id="streamFileInput" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg" multiple style="display: none;" />
+          
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <div style="width: 52px; height: 52px; border-radius: 14px; background: #dbeafe; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            
+            <div style="font-size: 15.5px; font-weight: 700; color: #1e3a8a; margin-top: 4px;">
+              Drag & Drop your Process Stream Sheet here, or <span style="color: #2563eb; text-decoration: underline; text-underline-offset: 3px;">browse local files</span>
+            </div>
+            
+            <div style="font-size: 12.5px; color: #64748b; max-width: 540px; line-height: 1.45;">
+              Auto-parses column-wise HMBs, multi-stream property tables, and SOR component breakdowns. Zero limit on streams or components.
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; justify-content: center;">
+              <span style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">.XLSX</span>
+              <span style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">.XLS</span>
+              <span style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;">.CSV</span>
+              <span style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #fef3c7; color: #b45309; border: 1px solid #fde68a;">.PDF</span>
+              <span style="font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff;">OCR IMAGES</span>
+            </div>
+
+            <div style="margin-top: 8px;">
+              <button type="button" class="stream-btn stream-btn-primary" style="padding: 8px 22px; font-size: 13px; font-weight: 600; border-radius: 8px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3); display: inline-flex; align-items: center; gap: 8px;" onclick="event.stopPropagation(); document.getElementById('streamFileInput').click()">
+                <span>📁</span> Browse Local Document(s)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Benchmark Scenarios & Template -->
+        <div style="padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <span style="font-size: 12.5px; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 6px;">
+              <span style="color: #f59e0b;">⚡</span> Benchmark Refinery Scenarios & Ready Template:
+            </span>
+            <span style="font-size: 11.5px; color: #64748b;">Instant One-Click Load</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #4338ca; border: 1px solid #c7d2fe; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.loadSampleCombined()" title="Load Combined NRL Case (Properties + Components)">
+              🔗 Combined NRL Case
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.loadSampleMultiCase()" title="Load Multi-Operating Case Study (SOR ↔ EOR ↔ Case 2)">
+              ⚖️ Multi-Case Study (SOR / EOR / Case 2)
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #b45309; border: 1px solid #fde68a; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.loadSampleProperties()" title="Load NRL Physical Properties (Streams 100 - 100D)">
+              ⚡ Physical Properties (100 - 100D)
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #047857; border: 1px solid #a7f3d0; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.loadSampleComponents()" title="Load NRL Component Breakdown (Streams 172A - 174A)">
+              🧪 Components (172A - 174A)
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.downloadExcelTemplate()" title="Download Excel Template">
+              📥 Download Template (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        <!-- Operations & Cloud Storage Bar -->
+        <div style="padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="font-size: 12px; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 6px;">
+            <span>☁️</span> Cloud & Export Actions:
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.openSavedDatasetsModal()" title="View and load saved datasets from Firestore">
+              📂 Cloud Datasets (<span id="savedDatasetsCountModal">0</span>)
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #16a34a; color: #ffffff; border: 1px solid #15803d; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.saveToFirestore()" title="Save current dataset to Firestore">
+              💾 Save to Cloud
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #059669; color: #ffffff; border: 1px solid #047857; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.exportFullDatasetToExcel()" title="Export all streams to Excel">
+              📊 Export All (.xlsx)
+            </button>
+            <button type="button" class="stream-btn" style="padding: 6px 12px; font-size: 12px; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; font-weight: 600;" onclick="window.StreamComparator.exportToExcel()" title="Export comparison to Excel">
+              📑 Export A/B (.xlsx)
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading Spinner Indicator inside Pop Screen -->
+        <div id="streamLoadingSpinner" class="stream-spinner-wrap" style="display: none; padding: 20px; text-align: center;">
+          <div class="stream-spinner" style="margin: 0 auto 10px auto;"></div>
+          <div id="streamLoadingMsg" style="font-size: 13.5px; font-weight: 600; color: #2563eb;">Processing Document...</div>
+        </div>
+      </div>
+
+      <!-- Pop Screen Footer -->
+      <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 12px; color: #64748b;">
+          💡 Uploaded stream data automatically updates all Deep Differential & Matrix tables in real time.
+        </div>
+        <button type="button" class="stream-btn stream-btn-primary" style="padding: 7px 18px; font-size: 12.5px; font-weight: 600; border-radius: 8px;" onclick="window.StreamComparator.closeIngestModal()">
+          ✓ View Comparisons & Charts
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ☁️ Saved Stream Datasets (Firestore) Modal -->
+  <div id="savedStreamsModal" class="rbac-modal-backdrop" style="display: none;">
+    <div class="rbac-modal-card" style="max-width: 650px;">
+      <div class="rbac-modal-header">
+        <h3>☁️ Saved Process Stream Datasets (Firestore)</h3>
+        <button class="rbac-close-btn" onclick="window.StreamComparator.closeSavedDatasetsModal()" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div style="padding: 16px;">
+        <p style="font-size: 13px; color: #64748b; margin-top: 0; line-height: 1.5;">
+          All Heat & Material Balance datasets persisted in your cloud <strong>Firestore database</strong>. Click <strong>Load</strong> to compare streams (Delete is reserved for Administrators).
+        </p>
+        <div id="savedDatasetsList" style="max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+          <div style="text-align: center; color: #94a3b8; padding: 24px;">Loading saved datasets...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 🤖 TAB: Corrosion Control Document Management System (CCD AI Platform) -->
+  <!-- ===================================================================== -->
+  <div class="tab-content" id="ccdAiTab" style="display: none; padding: 0; margin: 0;">
+    <div class="ccd-direct-wrapper">
+      <!-- Direct Slim Top Navigation Bar -->
+      <div class="ccd-direct-bar">
+        <div class="ccd-direct-left">
+          <button type="button" class="ccd-direct-btn" onclick="if (typeof exitCCDPlatform === 'function') exitCCDPlatform(); else { hideAllMainPanels(); showWelcomePanel(); }">
+            ← Back to Dashboard
+          </button>
+          <div class="ccd-direct-brand">
+            <span class="ccd-direct-icon">🤖</span>
+            <span class="ccd-direct-title">CCD AI Platform</span>
+            <span class="ccd-direct-tag">Corrosion Control Document Management System</span>
+          </div>
+        </div>
+        <div class="ccd-direct-right">
+          <button type="button" class="ccd-direct-btn-icon" onclick="reloadCCDFrame()" title="Reload Dashboard">
+            🔄 Reload
+          </button>
+          <button type="button" class="ccd-direct-btn-icon" id="ccdFullscreenBtn" onclick="toggleCCDFullscreen()" title="Toggle Fullscreen">
+            ⛶ Fullscreen
+          </button>
+          <a href="https://corrosion-control-document-management-system-544581869392.asia-southeast1.run.app" target="_blank" rel="noopener noreferrer" class="ccd-direct-btn-open">
+            Open Standalone ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Direct Full-Bleed CCD Dashboard Viewport -->
+      <div class="ccd-direct-viewport" id="ccdFrameContainer">
+        <iframe
+          id="ccdPlatformFrame"
+          class="ccd-direct-iframe"
+          src="/ccd-platform/index.html?v=20261005_cloud1"
+          title="Corrosion Control Document Management System Dashboard"
+          allow="clipboard-read; clipboard-write; fullscreen"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+
+<!-- Load dependencies with crossorigin support for accurate error tracking -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" crossorigin="anonymous"></script>
+
+  <!-- 🔐 Single Protected & Minified Application Engine (Bundles calculation tools & logic) -->
+  <script src="assets/app-engine.min.js?v=20261002_stream_ingest_v5"></script>
+  <!-- Direct load for Logic, RBAC Client & Executive Admin Control Panel -->
+  <script src="js/logic.js?v=20261002_stream_ingest_v5"></script>
+  <script src="js/rbac.js?v=20261002_stream_ingest_v5"></script>
+  <script src="js/admin-panel.js?v=20261002_stream_ingest_v5"></script>
+  <script src="js/recent-tabs.js?v=20261002_stream_ingest_v5"></script>
+  <script src="periodic-table.js?v=20261002_stream_ingest_v5"></script>
+  <script src="unit-converter.js?v=20261002_stream_ingest_v5"></script>
+  <script src="stream-comparator.js?v=20261002_stream_ingest_v5"></script>
+  <script src="nace-classifier.js?v=20261002_stream_ingest_v5"></script>
+  <script src="injection-mixing-viz.js?v=20261002_stream_ingest_v5"></script>
+  <script src="ccd-ai-platform.js?v=20261005_ccd_v1"></script>
+  <script src="structural-thickness.js?v=20261005_dark_v5"></script>
+
+  <!-- Session Manager -->
+  <script type="module" src="js/firebase-auth.js"></script>
+
+  <!-- 🧭 Isolated GE APM Deep Router (Non-Intrusive Two-Way Hash Routing Engine with Dynamic Template Manager & Numeric Entity Keys) -->
+  <script>
+    (function () {
+      "use strict";
+
+      var _isNavigatingFromHash = false;
+
+      // ── 1. Safe URL Hash Updater (Prevents Recursion & Preserves History) ──
+      function setHashWithoutTriggeringRouter(targetHash) {
+        if (_isNavigatingFromHash) return;
+        if (!targetHash) return;
+        var currentHash = window.location.hash || "";
+        if (currentHash === targetHash) return;
+
+        try {
+          if (window.history && typeof window.history.pushState === "function") {
+            window.history.pushState(null, "", targetHash);
+          } else {
+            window.location.hash = targetHash;
+          }
+        } catch (e) {
+          try { window.location.hash = targetHash; } catch (err) {}
+        }
+      }
+
+      // ── 2. Pure Numeric Entity Key Mappings (ent=XXXX) ──
+      var FUNCTION_TO_HASH = {
+        showAdminPanelTab: "#0;ent=1000",
+        showStreamComparatorTab: "#0;ent=1010",
+        showCCDAITab: "#0;ent=1020",
+        showCORROSION_CALCULATIONTab: "#0;ent=1030",
+        showASMEB31_3Tab: "#0;ent=1040",
+        showSimplePipingTab: "#0;ent=1041",
+        showASMESECTIONVIIIDIV1Tab: "#0;ent=1042",
+        showpipeThicknessTab: "#0;ent=1043",
+        showStructuralThicknessTab: "#0;ent=1044",
+        showCriteriaTab: "#0;ent=1051",
+        showCorrosionTab: "#0;ent=1052",
+        showCorrosionFullTab: "#0;ent=1053",
+        showFluidSelectorTab: "#0;ent=1054",
+        showInventoryTab: "#0;ent=1055",
+        showINSPECTIONCONFIDENCETab: "#0;ent=1056",
+        showTOXIC_CALCULATIONTab: "#0;ent=1057",
+        showcof_calculatorTab: "#0;ent=1058",
+        showQPOF_calculatorTab: "#0;ent=1059",
+        showbkStressTab: "#0;ent=1060",
+        showCrackingMechanismTab: "#0;ent=1065",
+        showRemainingLifeTab: "#0;ent=1070",
+        showChemicalSuiteTab: "#0;ent=1080",
+        showUnitConverterTab: "#0;ent=1090",
+        openDamageExplorerCard: "#0;ent=1571",
+        goHome: "#0;rte=home",
+        showWelcomePanel: "#0;rte=home"
+      };
+
+      var TAB_ID_TO_HASH = {
+        adminPanelTab: "#0;ent=1000",
+        streamComparatorTab: "#0;ent=1010",
+        ccdAiTab: "#0;ent=1020",
+        CORROSION_CALCULATIONTab: "#0;ent=1030",
+        ASMEB31_3Tab: "#0;ent=1040",
+        simplePipingTab: "#0;ent=1041",
+        ASMESECTIONVIIIDIV1Tab: "#0;ent=1042",
+        pipeThicknessTab: "#0;ent=1043",
+        structuralThicknessTab: "#0;ent=1044",
+        "a571-criteriaTab": "#0;ent=1051",
+        corrosionRateTab: "#0;ent=1052",
+        corrosionFullTab: "#0;ent=1053",
+        fluidSelectorTab: "#0;ent=1054",
+        inventoryTab: "#0;ent=1055",
+        inspectionconfidenceTab: "#0;ent=1056",
+        TOXIC_CALCULATIONTab: "#0;ent=1057",
+        cof_calculatorTab: "#0;ent=1058",
+        QPOF_calculatorTab: "#0;ent=1059",
+        bkStressTab: "#0;ent=1060",
+        crackingMechanismTab: "#0;ent=1065",
+        remainingLifeTab: "#0;ent=1070",
+        chemicalSuiteTab: "#0;ent=1080",
+        unitConverterTab: "#0;ent=1090",
+        welcomePanel: "#0;rte=home"
+      };
+
+      // ── 3. Dynamic Module Template Configuration & Manager ──
+      var MODULE_TEMPLATES = {
+        "1000": {
+          elementId: "adminPanelTab",
+          url: "templates/view-admin-1000.html",
+          showFn: "showAdminPanelTab",
+          lifecycle: function () {
+            if (window.adminPanel && typeof window.adminPanel.loadAll === "function") {
+              window.adminPanel.loadAll();
+            }
+          }
+        },
+        "1010": {
+          elementId: "streamComparatorTab",
+          url: "templates/view-stream-1010.html",
+          showFn: "showStreamComparatorTab",
+          lifecycle: function () {
+            if (window.StreamComparator && typeof window.StreamComparator.init === "function") {
+              window.StreamComparator.init();
+            }
+          }
+        },
+        "1030": {
+          elementId: "CORROSION_CALCULATIONTab",
+          url: "templates/view-rbi-1030.html",
+          showFn: "showCORROSION_CALCULATIONTab",
+          lifecycle: function () {
+            if (window.RBIApp && typeof window.RBIApp.render === "function") {
+              window.RBIApp.render();
+            }
+          }
+        },
+        "1040": {
+          elementId: "ASMEB31_3Tab",
+          url: "templates/view-asme-1040.html",
+          showFn: "showASMEB31_3Tab",
+          lifecycle: function () {
+            if (typeof window.initB313 === "function") window.initB313();
+            if (typeof window.initB313AutoStressFields === "function") window.initB313AutoStressFields(false);
+          }
+        },
+        "1041": {
+          elementId: "simplePipingTab",
+          url: "templates/view-pipe-simple-1041.html",
+          showFn: "showSimplePipingTab",
+          lifecycle: function () {
+            if (typeof window.initSimplePiping === "function") window.initSimplePiping();
+          }
+        },
+        "1042": {
+          elementId: "ASMESECTIONVIIIDIV1Tab",
+          url: "templates/view-sec8-1042.html",
+          showFn: "showASMESECTIONVIIIDIV1Tab",
+          lifecycle: function () {
+            if (typeof window.showASMESECTIONVIIIDIV1Tab === "function") window.showASMESECTIONVIIIDIV1Tab();
+          }
+        },
+        "1043": {
+          elementId: "pipeThicknessTab",
+          url: "templates/view-pipe-chart-1043.html",
+          showFn: "showpipeThicknessTab",
+          lifecycle: function () {
+            if (typeof window.showpipeThicknessTab === "function") window.showpipeThicknessTab();
+          }
+        },
+        "1044": {
+          elementId: "structuralThicknessTab",
+          url: "templates/view-pipe-struct-1044.html",
+          showFn: "showStructuralThicknessTab",
+          lifecycle: function () {
+            if (typeof window.initStructuralThickness === "function") window.initStructuralThickness();
+          }
+        },
+        "1051": {
+          elementId: "a571-criteriaTab",
+          url: "templates/view-criteria-1051.html",
+          showFn: "showCriteriaTab",
+          lifecycle: function () {
+            if (typeof window.a571_init === "function") window.a571_init();
+            if (typeof window.showCriteriaTab === "function") window.showCriteriaTab();
+          }
+        },
+        "1053": {
+          elementId: "corrosionFullTab",
+          url: "templates/view-corrosion-1053.html",
+          showFn: "showCorrosionFullTab",
+          lifecycle: function () {
+            if (typeof window.initCorrosionFullTab === "function") window.initCorrosionFullTab();
+            if (typeof window.showCorrosionFullTab === "function") window.showCorrosionFullTab();
+          }
+        },
+        "1054": {
+          elementId: "fluidSelectorTab",
+          url: "templates/view-fluids-1054.html",
+          showFn: "showFluidSelectorTab",
+          lifecycle: function () {
+            if (typeof window.initFluidSelector === "function") window.initFluidSelector();
+            if (typeof window.showFluidSelectorTab === "function") window.showFluidSelectorTab();
+          }
+        },
+        "1055": {
+          elementId: "inventoryTab",
+          url: "templates/view-inventory-1055.html",
+          showFn: "showInventoryTab",
+          lifecycle: function () {
+            if (typeof window.initInventory === "function") window.initInventory();
+            if (typeof window.initBulkUpload === "function") window.initBulkUpload();
+            if (typeof window.showInventoryTab === "function") window.showInventoryTab();
+          }
+        },
+        "1056": {
+          elementId: "inspectionconfidenceTab",
+          url: "templates/view-inspection-1056.html",
+          showFn: "showINSPECTIONCONFIDENCETab",
+          lifecycle: function () {
+            if (typeof window.showINSPECTIONCONFIDENCETab === "function") window.showINSPECTIONCONFIDENCETab();
+          }
+        },
+        "1057": {
+          elementId: "TOXIC_CALCULATIONTab",
+          url: "templates/view-toxic-1057.html",
+          showFn: "showTOXIC_CALCULATIONTab",
+          lifecycle: function () {
+            if (typeof window.initToxicCalculator === "function") window.initToxicCalculator();
+          }
+        },
+        "1058": {
+          elementId: "cof_calculatorTab",
+          url: "templates/view-cof-1058.html",
+          showFn: "showcof_calculatorTab",
+          lifecycle: function () {
+            if (typeof window.initCOF === "function") window.initCOF();
+            if (typeof window.showcof_calculatorTab === "function") window.showcof_calculatorTab();
+          }
+        },
+        "1060": {
+          elementId: "bkStressTab",
+          url: "templates/view-stress-1060.html",
+          showFn: "showbkStressTab",
+          lifecycle: function () {
+            if (typeof window.initBkStressStandaloneUI === "function") {
+              window.initBkStressStandaloneUI();
+            } else {
+              if (typeof window.bkPopulateYears === "function") window.bkPopulateYears();
+              if (typeof window.renderYearManagerList === "function") window.renderYearManagerList();
+              if (typeof window.updateActiveDatabaseSummaryBadge === "function") window.updateActiveDatabaseSummaryBadge();
+              if (typeof window.refreshStressDataFromCloud === "function") window.refreshStressDataFromCloud();
+            }
+          }
+        },
+        "1065": {
+          elementId: "crackingMechanismTab",
+          url: "templates/view-cracking-1065.html",
+          showFn: "showCrackingMechanismTab",
+          lifecycle: function () {}
+        },
+        "1070": {
+          elementId: "remainingLifeTab",
+          url: "templates/view-remaininglife-1070.html",
+          showFn: "showRemainingLifeTab",
+          lifecycle: function () {
+            if (typeof window.showRemainingLifeTab === "function") window.showRemainingLifeTab();
+          }
+        },
+        "1080": {
+          elementId: "chemicalSuiteTab",
+          url: "templates/view-chemsuite-1080.html",
+          showFn: "showChemicalSuiteTab",
+          lifecycle: function () {
+            if (window.ChemicalSuite && typeof window.ChemicalSuite.init === "function") {
+              window.ChemicalSuite.init();
+            }
+          }
+        },
+        "1090": {
+          elementId: "unitConverterTab",
+          url: "templates/view-units-1090.html",
+          showFn: "showUnitConverterTab",
+          lifecycle: function () {
+            if (window.UnitConverter && typeof window.UnitConverter.init === "function") {
+              window.UnitConverter.init();
+            } else if (typeof window.showUnitConverterTab === "function") {
+              window.showUnitConverterTab();
+            }
+          }
+        }
+      };
+
+      var TemplateManager = {
+        _inFlight: {},
+        isLoaded: function (ent) {
+          var def = MODULE_TEMPLATES[ent];
+          if (!def) return false;
+          return !!document.getElementById(def.elementId);
+        },
+        loadModalTemplate: function (url, checkId, callback) {
+          if (document.getElementById(checkId)) {
+            if (typeof callback === "function") callback();
+            return;
+          }
+          var mount = document.getElementById("pfdModalsMount") || document.getElementById("dynamicModuleMount") || document.body;
+          fetch(url)
+            .then(function (res) {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              return res.text();
+            })
+            .then(function (html) {
+              var div = document.createElement("div");
+              div.innerHTML = html;
+              while (div.firstChild) {
+                mount.appendChild(div.firstChild);
+              }
+            })
+            .catch(function (err) {
+              console.warn("[TemplateManager] Failed to load modal template:", url, err);
+            })
+            .finally(function () {
+              if (typeof callback === "function") callback();
+            });
+        },
+        loadPfdModals: function (callback) {
+          this.loadModalTemplate("templates/view-pfd-modals.html", "processFlowModal", callback);
+        },
+        load: function (ent, callback) {
+          var def = MODULE_TEMPLATES[ent];
+          if (!def) {
+            if (typeof callback === "function") callback();
+            return;
+          }
+          // In-Memory DOM Caching: if already present in DOM, avoid redundant network requests
+          if (document.getElementById(def.elementId)) {
+            if (typeof callback === "function") callback();
+            return;
+          }
+          // Deduplicate in-flight fetch requests for the same entity key
+          if (this._inFlight[ent]) {
+            this._inFlight[ent].then(function () {
+              if (typeof callback === "function") callback();
+            }).catch(function (e) {
+              console.error("[TemplateManager] Error loading " + ent, e);
+            });
+            return;
+          }
+
+          var mount = document.getElementById("dynamicModuleMount");
+          if (!mount) {
+            mount = document.createElement("div");
+            mount.id = "dynamicModuleMount";
+            var contentArea = document.querySelector(".content");
+            if (contentArea) contentArea.appendChild(mount);
+            else document.body.appendChild(mount);
+          }
+
+          var self = this;
+          var fetchPromise = fetch(def.url)
+            .then(function (res) {
+              if (!res.ok) throw new Error("HTTP " + res.status + " while loading " + def.url);
+              return res.text();
+            })
+            .then(function (html) {
+              var tempDiv = document.createElement("div");
+              tempDiv.innerHTML = html;
+              while (tempDiv.firstChild) {
+                mount.appendChild(tempDiv.firstChild);
+              }
+              // Safe Post-Load Lifecycle Trigger
+              if (typeof def.lifecycle === "function") {
+                try {
+                  def.lifecycle();
+                } catch (lifeErr) {
+                  console.warn("[TemplateManager] Post-load lifecycle warning for " + ent, lifeErr);
+                }
+              }
+            })
+            .catch(function (err) {
+              console.error("[TemplateManager] Failed to fetch template:", def.url, err);
+            })
+            .finally(function () {
+              delete self._inFlight[ent];
+              if (typeof callback === "function") callback();
+            });
+
+          this._inFlight[ent] = fetchPromise;
+        }
+      };
+      window.TemplateManager = TemplateManager;
+
+      // ── 4. GE APM Hash Parser (Extracts ent=XXXX, m=XX, and GE APM sub-routes) ──
+      function parseApmHash(rawHash) {
+        var hash = String(rawHash || window.location.hash || "").replace(/^#/, "").trim();
+        if (!hash || hash === "0" || hash === "0;rte=home" || hash === "home" || hash === "0;ent=0") {
+          return { isHome: true };
+        }
+
+        var result = {
+          ent: null,
+          m: null,
+          tab: null,
+          assetId: null,
+          componentId: null,
+          analysisId: null,
+          dm: null,
+          rawRoute: null,
+          isHome: false
+        };
+
+        var tokens = hash.split(";").map(function (t) { return t.trim(); }).filter(Boolean);
+
+        tokens.forEach(function (token) {
+          var mMatch = token.match(/^m=([0-9a-zA-Z_-]+)$/i);
+          if (mMatch) {
+            result.m = mMatch[1].toLowerCase();
+            return;
+          }
+
+          var kvMatch = token.match(/^([a-zA-Z0-9_-]+)=(.*)$/);
+          if (kvMatch) {
+            var key = kvMatch[1].toLowerCase();
+            var val = decodeURIComponent(kvMatch[2].trim());
+            if (key === "ent" || key === "entity") result.ent = val;
+            else if (key === "tab") result.tab = val.toLowerCase();
+            else if (key === "ast" || key === "asset") result.assetId = val;
+            else if (key === "cmp" || key === "component") result.componentId = val;
+            else if (key === "anl" || key === "analysis") result.analysisId = val;
+            else if (key === "dm") result.dm = val;
+            else if (key === "rte") {
+              result.rawRoute = val;
+              parseRtePath(val, result);
+            }
+            return;
+          }
+
+          if (token === "0") return;
+          if (token.indexOf("/") !== -1) {
+            parseRtePath(token, result);
+          }
+        });
+
+        return result;
+      }
+
+      function parseRtePath(path, result) {
+        var hierMatch = path.match(/assets\/hierarchy\/([^/]+)/i);
+        if (hierMatch) {
+          result.ent = decodeURIComponent(hierMatch[1]);
+        }
+
+        var rbiFullMatch = path.match(/rbi\/asset\/([^/]+)\/component\/([^/]+)\/analysis\/([^/]+)/i);
+        if (rbiFullMatch) {
+          result.ent = "1030";
+          result.assetId = decodeURIComponent(rbiFullMatch[1]);
+          result.componentId = decodeURIComponent(rbiFullMatch[2]);
+          result.analysisId = decodeURIComponent(rbiFullMatch[3]);
+          return;
+        }
+
+        var rbiCompMatch = path.match(/rbi\/asset\/([^/]+)\/component\/([^/]+)/i);
+        if (rbiCompMatch) {
+          result.ent = "1030";
+          result.assetId = decodeURIComponent(rbiCompMatch[1]);
+          result.componentId = decodeURIComponent(rbiCompMatch[2]);
+          return;
+        }
+
+        var rbiAssetMatch = path.match(/rbi\/asset\/([^/]+)/i);
+        if (rbiAssetMatch) {
+          result.ent = "1030";
+          result.assetId = decodeURIComponent(rbiAssetMatch[1]);
+          return;
+        }
+
+        var p = path.toLowerCase();
+        if (p === "home") {
+          result.isHome = true;
+        } else if (p.indexOf("rbi") === 0) {
+          result.ent = "1030";
+        } else if (p.indexOf("stream") === 0 || p.indexOf("hmb") === 0) {
+          result.ent = "1010";
+        } else if (p.indexOf("ccd") === 0) {
+          result.ent = "1020";
+        } else if (p.indexOf("asme") === 0 || p.indexOf("piping") === 0) {
+          result.ent = "1040";
+        } else if (p.indexOf("damage") === 0 || p.indexOf("api571") === 0) {
+          result.ent = "1571";
+          var dmMatch = path.match(/(?:damage|api571)\/([^/]+)/i);
+          if (dmMatch) result.dm = decodeURIComponent(dmMatch[1]);
+        }
+      }
+
+      // ── 5. Route Dispatcher (Numeric Entity Keys & Legacy Routes -> UI) ──
+      function dispatchApmRoute() {
+        if (_isNavigatingFromHash) return;
+        _isNavigatingFromHash = true;
+
+        try {
+          var route = parseApmHash(window.location.hash);
+
+          // Route: Home
+          if (route.isHome) {
+            if (typeof window.goHome === "function") {
+              window.goHome();
+            }
+            return;
+          }
+
+          var ent = String(route.ent || "");
+          var mod = String(route.m || "");
+          var tab = String(route.tab || "");
+
+          // 1. Numeric Entity Keys (Priority 1) with Dynamic Template Loading
+          if (ent === "1000" || mod === "admin") {
+            TemplateManager.load("1000", function () {
+              if (typeof window.showAdminPanelTab === "function") window.showAdminPanelTab();
+            });
+            return;
+          }
+
+          if (ent === "1010" || mod === "1" || mod === "stream") {
+            TemplateManager.load("1010", function () {
+              if (typeof window.showStreamComparatorTab === "function") window.showStreamComparatorTab();
+            });
+            return;
+          }
+
+          if (ent === "1020" || mod === "2" || mod === "ccd") {
+            if (typeof window.showCCDAITab === "function") window.showCCDAITab();
+            return;
+          }
+
+          if (ent === "1030" || mod === "3" || mod === "rbi") {
+            TemplateManager.load("1030", function () {
+              if (typeof window.showCORROSION_CALCULATIONTab === "function") window.showCORROSION_CALCULATIONTab();
+              if (window.RBIApp) {
+                if (route.assetId) window.RBIApp.activeAssetId = route.assetId;
+                if (route.componentId) window.RBIApp.activeComponentId = route.componentId;
+                if (route.analysisId) window.RBIApp.activeAnalysisId = route.analysisId;
+                if (typeof window.RBIApp.render === "function") {
+                  window.RBIApp.render();
+                }
+              }
+            });
+            return;
+          }
+
+          if (ent === "1040" || (mod === "4" && !tab) || (mod === "asme" && !tab)) {
+            TemplateManager.load("1040", function () {
+              if (typeof window.showASMEB31_3Tab === "function") window.showASMEB31_3Tab();
+            });
+            return;
+          }
+
+          if (ent === "1041" || (mod === "piping" && tab === "simple")) {
+            TemplateManager.load("1041", function () {
+              if (typeof window.showSimplePipingTab === "function") window.showSimplePipingTab();
+            });
+            return;
+          }
+
+          if (ent === "1042" || (mod === "asme" && tab === "sec8div1")) {
+            TemplateManager.load("1042", function () {
+              if (typeof window.showASMESECTIONVIIIDIV1Tab === "function") window.showASMESECTIONVIIIDIV1Tab();
+            });
+            return;
+          }
+
+          if (ent === "1043" || (mod === "piping" && tab === "chart")) {
+            TemplateManager.load("1043", function () {
+              if (typeof window.showpipeThicknessTab === "function") window.showpipeThicknessTab();
+            });
+            return;
+          }
+
+          if (ent === "1044" || (mod === "piping" && tab === "structural")) {
+            TemplateManager.load("1044", function () {
+              if (typeof window.showStructuralThicknessTab === "function") window.showStructuralThicknessTab();
+            });
+            return;
+          }
+
+          if (ent === "1051" || (mod === "api581" && tab === "criteria")) {
+            TemplateManager.load("1051", function () {
+              if (typeof window.showCriteriaTab === "function") window.showCriteriaTab();
+            });
+            return;
+          }
+
+          if (ent === "1052" || (mod === "api581" && tab === "corrosion-calc")) {
+            TemplateManager.load("1053", function () {
+              if (typeof window.showCorrosionTab === "function") window.showCorrosionTab();
+            });
+            return;
+          }
+
+          if (ent === "1053" || (mod === "api581" && tab === "corrosion-rates") || (mod === "api581" && !tab)) {
+            TemplateManager.load("1053", function () {
+              if (typeof window.showCorrosionFullTab === "function") window.showCorrosionFullTab();
+            });
+            return;
+          }
+
+          if (ent === "1054" || (mod === "api581" && tab === "fluids")) {
+            TemplateManager.load("1054", function () {
+              if (typeof window.showFluidSelectorTab === "function") window.showFluidSelectorTab();
+            });
+            return;
+          }
+
+          if (ent === "1055" || (mod === "api581" && tab === "inventory")) {
+            TemplateManager.load("1055", function () {
+              if (typeof window.showInventoryTab === "function") window.showInventoryTab();
+            });
+            return;
+          }
+
+          if (ent === "1056" || (mod === "api581" && tab === "inspection-confidence")) {
+            TemplateManager.load("1056", function () {
+              if (typeof window.showINSPECTIONCONFIDENCETab === "function") window.showINSPECTIONCONFIDENCETab();
+            });
+            return;
+          }
+
+          if (ent === "1057" || (mod === "api581" && tab === "toxic")) {
+            TemplateManager.load("1057", function () {
+              if (typeof window.showTOXIC_CALCULATIONTab === "function") window.showTOXIC_CALCULATIONTab();
+            });
+            return;
+          }
+
+          if (ent === "1058" || (mod === "api581" && tab === "cof")) {
+            TemplateManager.load("1058", function () {
+              if (typeof window.showcof_calculatorTab === "function") window.showcof_calculatorTab();
+            });
+            return;
+          }
+
+          if (ent === "1059" || (mod === "api581" && tab === "qpof")) {
+            if (typeof window.showQPOF_calculatorTab === "function") window.showQPOF_calculatorTab();
+            return;
+          }
+
+          if (ent === "1060" || mod === "bkstress") {
+            TemplateManager.load("1060", function () {
+              if (typeof window.showbkStressTab === "function") window.showbkStressTab();
+            });
+            return;
+          }
+
+          if (ent === "1065" || mod === "cracking") {
+            TemplateManager.load("1065", function () {
+              if (typeof window.showCrackingMechanismTab === "function") window.showCrackingMechanismTab();
+            });
+            return;
+          }
+
+          if (ent === "1070" || mod === "api570" || mod === "remaininglife") {
+            TemplateManager.load("1070", function () {
+              if (typeof window.showRemainingLifeTab === "function") window.showRemainingLifeTab();
+            });
+            return;
+          }
+
+          if (ent === "1080" || mod === "chemsuite") {
+            TemplateManager.load("1080", function () {
+              if (typeof window.showChemicalSuiteTab === "function") window.showChemicalSuiteTab("suit");
+            });
+            return;
+          }
+
+          if (ent === "1090" || mod === "units") {
+            TemplateManager.load("1090", function () {
+              if (typeof window.showUnitConverterTab === "function") window.showUnitConverterTab();
+            });
+            return;
+          }
+
+          // Damage Mechanism Explorer & Specific Mechanisms (ent=1571)
+          if (ent === "1571" || mod === "571" || mod === "damage" || mod === "api571") {
+            waitForDamageData(function () {
+              if (route.dm && typeof window.showMechanismDetails === "function") {
+                var mech = typeof window.getDamageMechanismByName === "function"
+                  ? window.getDamageMechanismByName(route.dm)
+                  : (window.data && window.data["Damage Mechanism"] ? window.data["Damage Mechanism"][route.dm] : null);
+                if (mech) {
+                  window.showMechanismDetails(mech.code || route.dm, mech);
+                  return;
+                }
+              }
+              if (typeof window.openDamageExplorerCard === "function") {
+                window.openDamageExplorerCard();
+              }
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn("[ApmRouter] Navigation dispatch warning:", err);
+        } finally {
+          setTimeout(function () {
+            _isNavigatingFromHash = false;
+          }, 60);
+        }
+      }
+
+      function waitForDamageData(callback, maxWaitMs) {
+        var maxWait = maxWaitMs || 6000;
+        var start = Date.now();
+        function check() {
+          if (window.data && window.data["Damage Mechanism"] && Object.keys(window.data["Damage Mechanism"]).length > 0) {
+            callback();
+          } else if (Date.now() - start < maxWait) {
+            setTimeout(check, 100);
+          } else {
+            callback();
+          }
+        }
+        check();
+      }
+
+      // ── 6. Global Tab Call & Click Interceptors (UI -> Numeric Entity Hash) ──
+      function installUrlSyncHooks() {
+        // A. Wrap global tab functions with automatic on-demand template loading
+        Object.keys(FUNCTION_TO_HASH).forEach(function (fnName) {
+          var targetHash = FUNCTION_TO_HASH[fnName];
+          if (typeof window[fnName] === "function" && !window[fnName].__apmUrlSyncHooked) {
+            var origFn = window[fnName];
+            var mappedEnt = null;
+            Object.keys(MODULE_TEMPLATES).forEach(function (k) {
+              if (MODULE_TEMPLATES[k].showFn === fnName) mappedEnt = k;
+            });
+
+            var wrapped = function () {
+              var selfArgs = arguments;
+              var selfCtx = this;
+
+              function runOriginalAndSync() {
+                var ret = origFn.apply(selfCtx, selfArgs);
+                if (fnName === "showCORROSION_CALCULATIONTab" && window.RBIApp && window.RBIApp.activeAssetId) {
+                  var dynHash = "#0;ent=1030;ast=" + encodeURIComponent(window.RBIApp.activeAssetId);
+                  if (window.RBIApp.activeComponentId) dynHash += ";cmp=" + encodeURIComponent(window.RBIApp.activeComponentId);
+                  if (window.RBIApp.activeAnalysisId) dynHash += ";anl=" + encodeURIComponent(window.RBIApp.activeAnalysisId);
+                  setHashWithoutTriggeringRouter(dynHash);
+                } else {
+                  setHashWithoutTriggeringRouter(targetHash);
+                }
+                return ret;
+              }
+
+              if (mappedEnt && !TemplateManager.isLoaded(mappedEnt)) {
+                TemplateManager.load(mappedEnt, function () {
+                  runOriginalAndSync();
+                });
+                return;
+              }
+
+              return runOriginalAndSync();
+            };
+
+            wrapped.__apmUrlSyncHooked = true;
+            wrapped.__origFn = origFn;
+            window[fnName] = wrapped;
+          }
+        });
+
+        // B. Wrap showMechanismDetails for specific damage mechanism deep-link
+        if (typeof window.showMechanismDetails === "function" && !window.showMechanismDetails.__apmUrlSyncHooked) {
+          var origMechFn = window.showMechanismDetails;
+          var wrappedMech = function (code, data) {
+            var ret = origMechFn.apply(this, arguments);
+            var dmCode = code || (data && (data.code || data.name)) || "";
+            if (dmCode) {
+              setHashWithoutTriggeringRouter("#0;ent=1571;dm=" + encodeURIComponent(dmCode));
+            }
+            return ret;
+          };
+          wrappedMech.__apmUrlSyncHooked = true;
+          window.showMechanismDetails = wrappedMech;
+        }
+
+        // C. Hook RecentTabsManager.switchToTab
+        if (window.recentTabsManager && typeof window.recentTabsManager.switchToTab === "function" && !window.recentTabsManager.switchToTab.__apmUrlSyncHooked) {
+          var origSwitch = window.recentTabsManager.switchToTab;
+          window.recentTabsManager.switchToTab = function (tabId) {
+            var mappedEnt = null;
+            Object.keys(MODULE_TEMPLATES).forEach(function (k) {
+              if (MODULE_TEMPLATES[k].elementId === tabId) mappedEnt = k;
+            });
+
+            if (mappedEnt && !TemplateManager.isLoaded(mappedEnt)) {
+              TemplateManager.load(mappedEnt, function () {
+                origSwitch.call(window.recentTabsManager, tabId);
+                if (TAB_ID_TO_HASH[tabId]) {
+                  setHashWithoutTriggeringRouter(TAB_ID_TO_HASH[tabId]);
+                }
+              });
+              return;
+            }
+
+            var ret = origSwitch.apply(this, arguments);
+            if (TAB_ID_TO_HASH[tabId]) {
+              setHashWithoutTriggeringRouter(TAB_ID_TO_HASH[tabId]);
+            } else if (tabId && tabId.indexOf("dm_") === 0) {
+              var dmVal = tabId.replace(/^dm_(mech_)?/, "");
+              setHashWithoutTriggeringRouter("#0;ent=1571;dm=" + encodeURIComponent(dmVal));
+            }
+            return ret;
+          };
+          window.recentTabsManager.switchToTab.__apmUrlSyncHooked = true;
+        }
+      }
+
+      // ── 7. Global Helper: window.navigateToApmRecord ──
+      window.navigateToApmRecord = function (options) {
+        options = options || {};
+        var parts = ["0"];
+
+        var entKey = options.ent;
+        if (!entKey && options.m !== undefined) {
+          var mNum = String(options.m);
+          if (mNum === "1") entKey = "1010";
+          else if (mNum === "2") entKey = "1020";
+          else if (mNum === "3") entKey = "1030";
+          else if (mNum === "4") entKey = "1040";
+          else if (mNum === "571") entKey = "1571";
+          else entKey = mNum;
+        }
+
+        if (entKey) {
+          parts.push("ent=" + encodeURIComponent(entKey));
+        }
+
+        if (options.ast || options.cmp || options.anl) {
+          var rbiPath = "rte=rbi/asset/" + encodeURIComponent(options.ast || "");
+          if (options.cmp) rbiPath += "/component/" + encodeURIComponent(options.cmp);
+          if (options.anl) rbiPath += "/analysis/" + encodeURIComponent(options.anl);
+          parts.push(rbiPath);
+        } else if (entKey === "1030") {
+          parts.push("rte=rbi");
+        }
+
+        if (options.dm) {
+          parts.push("dm=" + encodeURIComponent(options.dm));
+        }
+
+        var newHash = "#" + parts.join(";");
+        if (window.location.hash !== newHash) {
+          window.location.hash = newHash;
+        } else {
+          dispatchApmRoute();
+        }
+      };
+
+      // ── 8. DOM Click Delegator for API 571 Damage Mechanisms ──
+      document.addEventListener("click", function (e) {
+        var mechLink = e.target && e.target.closest ? e.target.closest("#categoryList li.category-toggle li a") : null;
+        if (mechLink && !mechLink.closest("[id^='rbac_cat_']")) {
+          var mechName = (mechLink.textContent || "").trim();
+          if (mechName) {
+            setHashWithoutTriggeringRouter("#0;ent=1571;dm=" + encodeURIComponent(mechName));
+          }
+        }
+      }, true);
+
+      // ── 9. Lifecycle Listeners ──
+      window.addEventListener("hashchange", dispatchApmRoute);
+      window.addEventListener("popstate", dispatchApmRoute);
+
+      function initRouter() {
+        if (TemplateManager && typeof TemplateManager.loadPfdModals === "function") {
+          TemplateManager.loadPfdModals();
+        }
+        installUrlSyncHooks();
+        var retries = 0;
+        var intervalId = setInterval(function () {
+          installUrlSyncHooks();
+          retries++;
+          if (retries > 6) clearInterval(intervalId);
+        }, 800);
+
+        if (window.location.hash && window.location.hash !== "#" && window.location.hash !== "#0" && window.location.hash !== "#0;rte=home") {
+          setTimeout(dispatchApmRoute, 120);
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initRouter);
+      } else {
+        initRouter();
+      }
+    })();
+  </script>
+
+<!-- 🛡️ Admin Role-Based Access Control Modal -->
+<div id="rbacAdminModal" class="rbac-modal-backdrop" style="display: none;">
+  <div class="rbac-modal-card">
+    <div class="rbac-modal-header">
+      <h3>🛡️ Access & Roles Manager (Firebase RBAC)</h3>
+      <button class="rbac-close-btn" onclick="closeRbacAdminModal()" type="button" aria-label="Close">&times;</button>
+    </div>
+    
+    <div class="rbac-modal-body">
+      <div class="rbac-controls-bar">
+        <div class="rbac-field-group">
+          <label>Select User to Configure</label>
+          <select id="rbacUserSelect" onchange="window.onRbacUserSelected(this.value)">
+            <option value="">Loading users from Firebase...</option>
+          </select>
+        </div>
+
+        <div class="rbac-field-group">
+          <label>Assign Role Preset</label>
+          <select id="rbacRoleSelect" onchange="window.onRbacRoleChanged(this.value)">
+            <option value="admin">👑 Admin (Full Access to Everything)</option>
+            <option value="lead_engineer">⚙️ Lead Engineer (All Engineering & Calc Modules)</option>
+            <option value="inspector">🔍 Inspector (Damage Explorer, Screening & Remaining Life)</option>
+            <option value="viewer">👁️ Viewer (Read-only Damage & Fluids Data)</option>
+            <option value="custom">🛠️ Custom Permissions (Granular Checkboxes)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="rbac-field-group">
+        <label>Target User Email</label>
+        <input type="email" id="rbacTargetEmail" placeholder="user@company.com" />
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+        <span style="font-size: 13px; font-weight: 600; color: #94a3b8;">Module & Sub-section Permissions</span>
+        <span style="font-size: 12px; color: #64748b;">(Select "Custom Permissions" above to toggle individual checkboxes)</span>
+      </div>
+
+      <div id="rbacModulesContainer">
+        <!-- Injected dynamically by js/rbac.js -->
+      </div>
+    </div>
+
+    <div class="rbac-modal-footer">
+      <span style="font-size: 12px; color: #94a3b8;">Synced real-time with Firebase Firestore.</span>
+      <button id="rbacSaveBtn" class="rbac-save-btn" onclick="saveRbacPermissionsToFirebase()" type="button">
+        💾 Save Permissions to Firebase
+      </button>
+    </div>
+  </div>
+</div>
+    
+
+<!-- Chatbot Container -->
+<div id="chatbot-widget">
+  <!-- Chat Icon (Toggle Button) -->
+  <div id="chat-icon" onclick="toggleChat()">
+    <img src="image/AnnaAVBot.png" alt="Chatbot Icon" class="chatbot-icon-img" />
+  </div>
+
+  <!-- Chat Box (Initially Hidden) -->
+  <div id="chat-box" class="hidden">
+    <div id="chat-header" style="display: flex; align-items: center; gap: 5px;">
+      <span>KayetBot Assistant</span>
+      <div style="margin-left: auto; display: flex; gap: 5px;">
+        <button id="maximize-btn" onclick="toggleMaximize()">⛶</button>
+        <button id="close-btn" onclick="closeChat()">✖</button>
+      </div>
+    </div>
+
+    <div id="chat-log"></div>
+
+    <!-- Input and Suggestions -->
+    <div class="input-wrapper">
+      <input 
+        type="text" 
+        id="chat-input" 
+        placeholder="Ask anything..." 
+        onkeyup="handleChat(event); updateSuggestions();" 
+        autocomplete="off"
+      />
+      <div id="suggestions" class="suggestion-box"></div>
+    </div>
+  </div>
+</div>
+
+
+
+
+        
+ <!-- ✅ Footer -->
+<footer class="footer">
+  <div class="footer-left">
+    <span id="userRoleBadge" class="user-role-badge" style="display: none;"></span>
+  </div>
+  <div class="footer-center">
+    <div class="footer-logo">
+      <img src="image/logo.png" alt="Logo" />
+    </div>
+    <div class="footer-credit">&copy; 2026 | Created by Avijit Kayet</div>
+    <div class="footer-links">
+      <a href="about.html">About</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="contact.html">Contact</a>
+    </div>
+  </div>
+  <button class="logout-button" onclick="logout()">Logout</button>
+</footer>
+
+
+
+   
+     
+</body>
+</html>
+    

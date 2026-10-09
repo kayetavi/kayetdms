@@ -1,0 +1,28 @@
+<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">      
+  <style>      
+    .wave {      
+      fill: #1e88e5;      
+      animation: waveMove 5s linear infinite;      
+    }  .text {      
+  font-family: 'Segoe UI', sans-serif;      
+  text-anchor: middle;      
+  fill: white;      
+}    .main {  
+font-size: 48px;  
+font-weight: bold;  
+filter: drop-shadow(0 0 4px #ffffff88);  
+}  .sub {
+font-size: 20px;
+}
+
+@keyframes waveMove {
+0% { transform: translateX(0); }
+100% { transform: translateX(-200px); }
+}
+
+</style>    <!-- Background -->    <rect width="1000" height="300" fill="#0d47a1" />    <!-- Moving Wave -->    <g>
+<path class="wave" d="M0 200 Q100 170 200 200 T400 200 T600 200 T800 200 T1000 200 V300 H0 Z"/>
+</g>    <!-- Text -->  <text x="500" y="140" class="text main">API 571 / 581 Dashboard</text>
+<text x="500" y="180" class="text sub">Damage Mechanism • RBI Methodology </text>
+</svg>
+

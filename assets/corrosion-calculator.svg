@@ -1,0 +1,13 @@
+<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .pulse { animation: pulseBar 3s infinite ease-in-out alternate; }
+    @keyframes pulseBar {
+      0% { transform: scaleX(0.9); opacity: 0.3; }
+      100% { transform: scaleX(1.1); opacity: 1; } 
+    }
+  </style>
+  <rect width="1000" height="300" rx="25" fill="#198754" />
+  <rect x="400" y="210" width="200" height="8" rx="4" fill="#ffffff66" class="pulse" />
+  <text x="50%" y="140" text-anchor="middle" font-size="38" fill="#fff" font-family="Segoe UI">API 581 Corrosion Rate Calculator</text>
+  <text x="50%" y="180" text-anchor="middle" font-size="18" fill="#d9ffea">CUI • CO₂ • Sulfidation • Acid/Sour Water</text>
+</svg>

@@ -1,0 +1,13 @@
+<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .zoom { animation: zoomFade 1.5s ease-in-out infinite; transform-origin: center; }
+    @keyframes zoomFade {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+  </style>
+  <rect width="1000" height="300" rx="25" fill="#6610f2" />
+  <circle cx="920" cy="80" r="24" fill="#ffffff33" class="zoom"/>
+  <text x="50%" y="140" text-anchor="middle" font-size="38" fill="white" font-family="Segoe UI">Damage Mechanism Finder</text>
+  <text x="50%" y="180" text-anchor="middle" font-size="18" fill="#e0d9ff">Find damage mechanisms from process conditions</text>
+</svg>

@@ -1,0 +1,84 @@
+<svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    /* Title pulse glow */
+    .pulse {
+      animation: pulseGlow 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        opacity: 0.6;
+        text-shadow: 0 0 5px #fff, 0 0 10px #0ff;
+      }
+      50% {
+        opacity: 1;
+        text-shadow: 0 0 10px #fff, 0 0 20px #0ff;
+      }
+    }
+
+    /* Repeating typewriter animation */
+    .typewriter {
+      display: inline-block;
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 2px solid #d0e7ff;
+      animation:
+        typing 4s steps(40, end) infinite,
+        blink 0.75s step-end infinite;
+      width: 0;
+    }
+
+    @keyframes typing {
+      0% { width: 0; }
+      40% { width: 100%; }
+      60% { width: 100%; }
+      100% { width: 0; }
+    }
+
+    @keyframes blink {
+      0%, 100% { border-color: transparent; }
+      50% { border-color: #d0e7ff; }
+    }
+  </style>
+
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3c72" />
+      <stop offset="100%" stop-color="#2a5298" />
+    </linearGradient>
+
+    <!-- Glow Filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="300" rx="25" fill="url(#bgGradient)" />
+
+  <!-- Glowing Gear Icon -->
+  <g class="pulse" filter="url(#glow)">
+    <circle cx="100" cy="100" r="35" fill="#ffffff22" />
+    <path d="M100 80 L100 120 M80 100 L120 100 M90 90 L110 110 M110 90 L90 110"
+          stroke="#ffffffaa" stroke-width="4" stroke-linecap="round" />
+  </g>
+
+  <!-- Main Title with Glow -->
+  <text x="50%" y="140" text-anchor="middle" font-size="42" fill="#ffffff"
+        font-family="Segoe UI, sans-serif" class="pulse">
+    Representative Dashboard
+  </text>
+
+  <!-- Repeating Typewriter Subtitle -->
+  <foreignObject x="250" y="165" width="500" height="40">
+    <div xmlns="http://www.w3.org/1999/xhtml"
+         style="color:#d0e7ff; font-size:20px; font-family:Segoe UI, sans-serif;">
+      <span class="typewriter">Track Leads, Performance &amp; Real-Time Reports</span>
+    </div>
+  </foreignObject>
+</svg>

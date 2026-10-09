@@ -1,0 +1,16 @@
+{
+  "corrosion_rate": "CR = (t_initial - t_final) / (years_elapsed)   (mm/year)",
+  "remaining_life": "years_remaining = (t_current - Tmin) / CR",
+  "b31_3": "t_design = (P × D) / (2 × (S × E × W + P × Y))",
+  "asme_viii": {
+    "cylindrical_shell": "t = (P × R) / (S × E − 0.6 × P)",
+    "ellipsoidal_head": "t = (P × D) / (2 × S × E − 0.2 × P)",
+    "torispherical_head": "t ≈ (0.885 × P × D) / (S × E − 0.1 × P)",
+    "hemispherical_head": "t = (P × D) / (2 × S × E − 0.2 × P)"
+  },
+  "volume_formulas": {
+    "cylinder": "V = π × r² × L",
+    "sphere": "V = (4/3) × π × r³",
+    "frustum": "V = (1/3) × π × h × (R² + R × r + r²)"
+  }
+}
